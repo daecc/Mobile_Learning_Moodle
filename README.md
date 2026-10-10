@@ -1,29 +1,12 @@
-# Rumbo · Mobile Learning Moodle 🎓📱
+# Rumbo · Mobile Learning Moodle
 
 Sistema inteligente de **Mobile Learning** integrado con el LMS Moodle y potenciado con **Machine Learning**, diseñado para la detección temprana y prevención del **Riesgo Académico** en estudiantes universitarios de ingeniería.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 El proyecto sigue una arquitectura desacoplada basada en microservicios y MVVM:
-
-```
-┌─────────────────────────────────┐
-│     Frontend Móvil (Flutter)     │
-│   Arquitectura MVVM + Provider  │
-└────────────────┬────────────────┘
-                 │ REST / JSON (HTTP)
-┌────────────────▼────────────────┐
-│      Backend API (FastAPI)      │
-│  Controladores, DTOs y Servicios│
-└────────┬───────────────┬────────┘
-         │               │
-┌────────▼────────┐ ┌────▼──────────────┐
-│  Módulo de IA   │ │   LMS Moodle      │
-│  (scikit-learn) │ │  Logs e Interacción│
-└─────────────────┘ └───────────────────┘
-```
 
 1. **Frontend (Flutter):** Implementación fiel al sistema de diseño **Rumbo** (Light & Dark mode), con el medidor semicircular de riesgo (*Tacómetro / RiskGauge*), alertas tempranas accionables y tarjetas metacognitivas explicativas.
 2. **Backend (FastAPI):** API REST de alto rendimiento que realiza inferencia en tiempo real usando el modelo entrenado con `StandardScaler` y `LogisticRegression` / `RandomForest`.
@@ -31,7 +14,7 @@ El proyecto sigue una arquitectura desacoplada basada en microservicios y MVVM:
 
 ---
 
-## 📁 Estructura del Repositorio
+## Estructura del Repositorio
 
 ```text
 Mobile_Learning_Moodle/
@@ -63,7 +46,7 @@ Mobile_Learning_Moodle/
 
 ---
 
-## 🚀 Guía de Ejecución
+## Guía de Ejecución
 
 ### 1. Iniciar el Backend (FastAPI)
 
@@ -111,7 +94,7 @@ Puedes correrlo en la plataforma de tu elección:
 
 ---
 
-## 🔑 Credenciales de Prueba (Demo)
+## Credenciales de Prueba (Demo)
 
 El sistema incluye accesos rápidos preconfigurados en la pantalla de inicio:
 * **Estudiante Principal:** `EST-0001` (Valeria Rojas Palacios)
