@@ -169,13 +169,17 @@ def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveSt
 
     return metricas
 
+import pandas as pd
+
 def predecir_vector(vector_dict: Dict[str, float]) -> Tuple[float, int, str]:
     if model is None or scaler is None:
         raise RuntimeError("El modelo no está cargado")
     
-    vec = [float(vector_dict.get(feat, 0.0)) for feat in features_list]
-    vec_scaled = scaler.transform([vec])
+    row_values = [float(vector_dict.get(feat, 0.0)) for feat in features_list]
+    df_vec = pd.DataFrame([row_values], columns=features_list)
+    vec_scaled = scaler.transform(df_vec)
     proba = float(model.predict_proba(vec_scaled)[0, 1])
     pct = round(proba * 100)
     nivel, _, _, _ = calcular_nivel_riesgo(proba)
     return proba, pct, nivel
+

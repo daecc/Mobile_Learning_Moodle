@@ -5,6 +5,7 @@ import 'package:rumbo_app/data/services/api_service.dart';
 import 'package:rumbo_app/viewmodels/auth_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/courses_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/riesgo_viewmodel.dart';
+import 'package:rumbo_app/viewmodels/theme_viewmodel.dart';
 
 void main() {
   testWidgets('RumboApp smoke test - renders Login screen and title', (WidgetTester tester) async {
@@ -12,6 +13,7 @@ void main() {
     final authVm = AuthViewModel(apiService: apiService);
     final coursesVm = CoursesViewModel(apiService: apiService);
     final riesgoVm = RiesgoViewModel(apiService: apiService);
+    final themeVm = ThemeViewModel();
 
     await tester.pumpWidget(
       MultiProvider(
@@ -19,13 +21,14 @@ void main() {
           ChangeNotifierProvider.value(value: authVm),
           ChangeNotifierProvider.value(value: coursesVm),
           ChangeNotifierProvider.value(value: riesgoVm),
+          ChangeNotifierProvider.value(value: themeVm),
         ],
         child: RumboApp(authVm: authVm),
       ),
     );
 
-    // Verify Rumbo brand and Ingresar button exist
+    // Verify Rumbo brand and Iniciar Sesión button exist
     expect(find.text('Rumbo'), findsOneWidget);
-    expect(find.text('Ingresar'), findsOneWidget);
+    expect(find.text('Iniciar Sesión'), findsOneWidget);
   });
 }

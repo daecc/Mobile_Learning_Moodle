@@ -9,13 +9,16 @@ def test_api():
     print("Status:", r.status_code, r.json())
     assert r.status_code == 200
 
-    print("\n--- Test 2: Login ---")
-    r = client.post("/api/auth/login", json={"codigo": "admin", "password": "AdminMoodle2026!"})
+    print("\n--- Test 2: Login con credencial real de Moodle (guillermo1234) ---")
+    r = client.post("/api/auth/login", json={"codigo": "guillermo1234", "password": "Base22SW42"})
     print("Status:", r.status_code, r.json())
     assert r.status_code == 200
+    login_data = r.json()
+    id_est = login_data["estudiante"]["id_estudiante"]
+    print(f"Estudiante autenticado: {login_data['estudiante']['nombre']} ({id_est})")
 
-    print("\n--- Test 3: Cursos del estudiante EST-ADMIN ---")
-    r = client.get("/api/estudiantes/EST-ADMIN/cursos")
+    print(f"\n--- Test 3: Cursos del estudiante {id_est} ---")
+    r = client.get(f"/api/estudiantes/{id_est}/cursos")
     data = r.json()
     print("Status:", r.status_code)
     print("Estudiante:", data.get("nombre_estudiante"))
@@ -23,11 +26,11 @@ def test_api():
     for c in data.get("cursos", []):
         print(f"  - [{c['codigo_curso']}] {c['nombre_curso']}: {c['porcentaje_riesgo']}% ({c['nivel_riesgo']})")
     assert r.status_code == 200
-    assert len(data.get("cursos", [])) > 0
+    assert len(data.get("cursos", [])) == 3
 
     first_course = data.get("cursos")[0]["id_curso"]
-    print(f"\n--- Test 4: Detalle de riesgo para {first_course} ---")
-    r = client.get(f"/api/estudiantes/EST-ADMIN/cursos/{first_course}/riesgo")
+    print(f"\n--- Test 4: Detalle de riesgo para curso {first_course} ---")
+    r = client.get(f"/api/estudiantes/{id_est}/cursos/{first_course}/riesgo")
     detail = r.json()
     print("Status:", r.status_code)
     print(f"Curso: {detail.get('nombre_curso')} | Nivel: {detail.get('nivel_riesgo')} ({detail.get('porcentaje_riesgo')}%)")
@@ -57,7 +60,7 @@ def test_api():
     assert r.status_code == 200
     assert pred["nivel_riesgo"] == "CRITICO"
 
-    print("\nTODAS LAS PRUEBAS DEL BACKEND PASARON EXITOSAMENTE (5/5)")
+    print("\n>>> TODAS LAS PRUEBAS DEL BACKEND PASARON EXITOSAMENTE (5/5) <<<")
 
 if __name__ == "__main__":
     test_api()

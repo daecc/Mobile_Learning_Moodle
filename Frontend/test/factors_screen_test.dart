@@ -5,6 +5,7 @@ import 'package:rumbo_app/data/models/risk_detail_model.dart';
 import 'package:rumbo_app/data/services/api_service.dart';
 import 'package:rumbo_app/viewmodels/auth_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/riesgo_viewmodel.dart';
+import 'package:rumbo_app/viewmodels/theme_viewmodel.dart';
 import 'package:rumbo_app/views/screens/factors_screen.dart';
 import 'package:rumbo_app/views/widgets/factor_charts/day_circles_chart.dart';
 import 'package:rumbo_app/views/widgets/factor_charts/quiz_trend_chart.dart';
@@ -27,6 +28,7 @@ Widget createFactorsWidget(
     providers: [
       ChangeNotifierProvider<RiesgoViewModel>.value(value: riesgoVm),
       ChangeNotifierProvider<AuthViewModel>.value(value: authVm),
+      ChangeNotifierProvider<ThemeViewModel>(create: (_) => ThemeViewModel()),
     ],
     child: MaterialApp(
       home: FactorsScreen(courseId: courseId),

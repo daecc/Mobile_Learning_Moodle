@@ -6,6 +6,7 @@ import 'package:rumbo_app/data/services/api_service.dart';
 import 'package:rumbo_app/data/models/course_model.dart';
 import 'package:rumbo_app/viewmodels/auth_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/courses_viewmodel.dart';
+import 'package:rumbo_app/viewmodels/theme_viewmodel.dart';
 import 'package:rumbo_app/views/screens/courses_screen.dart';
 
 class FakeApiService extends ApiService {
@@ -21,6 +22,7 @@ void main() {
       providers: [
         ChangeNotifierProvider<CoursesViewModel>.value(value: coursesVm),
         ChangeNotifierProvider<AuthViewModel>.value(value: authVm),
+        ChangeNotifierProvider<ThemeViewModel>(create: (_) => ThemeViewModel()),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -45,39 +47,39 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header
-    expect(find.text('Hola, Valeria'), findsOneWidget);
-    expect(find.text('Mis cursos'), findsOneWidget);
+    expect(find.text('Hola, Valeria 👋'), findsOneWidget);
+    expect(find.text('Mis Cursos'), findsOneWidget);
     expect(find.text('VQ'), findsOneWidget);
 
     // Verify hero banner
     expect(
-      find.text('1 curso necesita tu atención y 2 conviene revisarlos esta semana.'),
+      find.text('1 curso requiere atención prioritaria y 2 en observación.'),
       findsOneWidget,
     );
     expect(find.text('1 crítico'), findsOneWidget);
-    expect(find.text('2 en riesgo'), findsOneWidget);
+    expect(find.text('2 moderado'), findsOneWidget);
     expect(find.text('1 seguro'), findsOneWidget);
     expect(
-      find.text('Son estimaciones basadas en tu actividad en Moodle, no notas.'),
+      find.text('Estimaciones calculadas con IA y actividad real de Moodle (Nielsen H6).'),
       findsOneWidget,
     );
 
     // Verify sort & sync row
-    expect(find.text('Por prioridad'), findsOneWidget);
+    expect(find.text('Por prioridad de riesgo'), findsOneWidget);
     expect(find.text(coursesVm.lastSyncFormatted), findsOneWidget);
 
     // Verify courses
     expect(find.text('Patrones de Diseño de Software'), findsOneWidget);
-    expect(find.text('85 %'), findsOneWidget);
+    expect(find.text('85'), findsOneWidget);
 
     expect(find.text('Ingeniería de Requisitos'), findsOneWidget);
-    expect(find.text('52 %'), findsOneWidget);
+    expect(find.text('52'), findsOneWidget);
 
     expect(find.text('Arquitectura de Software'), findsOneWidget);
-    expect(find.text('41 %'), findsOneWidget);
+    expect(find.text('41'), findsOneWidget);
 
     expect(find.text('Base de Datos II'), findsOneWidget);
-    expect(find.text('18 %'), findsOneWidget);
+    expect(find.text('18'), findsOneWidget);
 
     expect(find.text('Gestión de Proyectos de Software'), findsOneWidget);
     expect(find.text('Desde el 19 de oct.'), findsOneWidget);
@@ -91,10 +93,10 @@ void main() {
     await tester.pumpWidget(createCoursesWidget(coursesVm, authVm));
     await tester.pumpAndSettle();
 
-    expect(find.text('Por prioridad'), findsOneWidget);
+    expect(find.text('Por prioridad de riesgo'), findsOneWidget);
 
     // Tap to toggle sort
-    await tester.tap(find.text('Por prioridad'));
+    await tester.tap(find.text('Por prioridad de riesgo'));
     await tester.pumpAndSettle();
 
     expect(find.text('Alfabético'), findsOneWidget);
@@ -112,9 +114,9 @@ void main() {
     coursesVm.simulateState('empty');
     await tester.pumpAndSettle();
 
-    expect(find.text('Aún no vemos cursos tuyos'), findsOneWidget);
-    expect(find.text('Volver a buscar'), findsOneWidget);
-    expect(find.text('¿Crees que es un error? Escribe a soporte'), findsOneWidget);
+    expect(find.text('No se encontraron cursos activos'), findsOneWidget);
+    expect(find.text('Actualizar cursos'), findsOneWidget);
+    expect(find.text('Cerrar sesión e intentar con otro usuario'), findsOneWidget);
   });
 
   testWidgets('CoursesScreen displays Error State correctly', (tester) async {
@@ -128,9 +130,8 @@ void main() {
     coursesVm.simulateState('error');
     await tester.pumpAndSettle();
 
-    expect(find.text('No pudimos cargar tus cursos'), findsOneWidget);
-    expect(find.text('Código: 503 · Rumbo API'), findsOneWidget);
-    expect(find.text('Reintentar'), findsOneWidget);
-    expect(find.text('Ver la última copia (ayer, 07:30)'), findsOneWidget);
+    expect(find.text('Error de conexión con el backend'), findsOneWidget);
+    expect(find.text('Reintentar conexión'), findsOneWidget);
+    expect(find.text('Volver al login'), findsOneWidget);
   });
 }
