@@ -7,6 +7,7 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/courses_viewmodel.dart';
 import 'viewmodels/riesgo_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
+import 'viewmodels/tutor_viewmodel.dart';
 import 'views/screens/courses_screen.dart';
 import 'views/screens/login_screen.dart';
 
@@ -33,6 +34,9 @@ class RumboBootstrap extends StatelessWidget {
         ),
         ChangeNotifierProvider<RiesgoViewModel>(
           create: (_) => RiesgoViewModel(apiService: apiService),
+        ),
+        ChangeNotifierProvider<TutorViewModel>(
+          create: (_) => TutorViewModel(apiService: apiService),
         ),
       ],
       child: RumboApp(authVm: authVm),

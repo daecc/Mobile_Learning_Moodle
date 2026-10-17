@@ -48,6 +48,20 @@ class RiskFactor {
     this.chartValues = const [],
   });
 
+  factory RiskFactor.fromJson(Map<String, dynamic> json) {
+    return RiskFactor(
+      clave: json['clave'] as String? ?? '',
+      titulo: json['titulo'] as String? ?? '',
+      subtitulo: json['subtitulo'] as String? ?? '',
+      impacto: json['impacto'] as String? ?? 'reduce',
+      influencia: (json['influencia'] as num?)?.toInt() ?? 1,
+      chartType: json['chartType'] as String?,
+      chartValues: ((json['chartValues'] as List<dynamic>?) ?? const [])
+          .map((e) => (e as num).toDouble())
+          .toList(),
+    );
+  }
+
   bool get sumaRiesgo => impacto == 'aumenta';
 }
 
@@ -68,6 +82,23 @@ class FactoresBundle {
     required this.favorables,
     this.reflexionOpciones = const [],
   });
+
+  factory FactoresBundle.fromJson(Map<String, dynamic> json) {
+    return FactoresBundle(
+      periodo: json['periodo'] as String? ?? 'últimas semanas',
+      sumanRiesgo: (json['sumanRiesgo'] as num?)?.toInt() ?? 0,
+      jueganFavor: (json['jueganFavor'] as num?)?.toInt() ?? 0,
+      riesgos: ((json['riesgos'] as List<dynamic>?) ?? const [])
+          .map((e) => RiskFactor.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      favorables: ((json['favorables'] as List<dynamic>?) ?? const [])
+          .map((e) => RiskFactor.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      reflexionOpciones: ((json['reflexionOpciones'] as List<dynamic>?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
 }
 
 /// Detalle completo del riesgo de un curso.
@@ -149,6 +180,9 @@ class RiskDetailResponse {
       pasoTitulo: json['paso_titulo'] as String?,
       pasoSubtitulo: json['paso_subtitulo'] as String?,
       pasoTipo: json['paso_tipo'] as String?,
+      factores: json['factores'] != null
+          ? FactoresBundle.fromJson(json['factores'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

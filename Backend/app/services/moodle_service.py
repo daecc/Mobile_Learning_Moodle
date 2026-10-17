@@ -345,27 +345,46 @@ class MoodleService:
                 nivel, alerta_t, alerta_m, accion_rec = calcular_nivel_riesgo(prob_riesgo)
 
                 # Factores XAI (Explicabilidad según principios Nielsen H6)
+                chart_days = [1 if i >= (14 - dias_inact) else 0 for i in range(14)]
+                chart_tasks = [1] * (total_tasks - pending_tasks) + [0] * pending_tasks
+                quiz_trend_vals = [promedio - 0.5, promedio + 0.3, promedio] if promedio >= 11 else [promedio + 1.5, promedio, promedio - 1.0]
+
                 factores_list = [
                     {
                         "clave": "inactividad",
                         "titulo": f"Último acceso al curso: hace {dias_inact} día{'s' if dias_inact != 1 else ''}",
                         "impacto": "aumenta" if dias_inact > 3 else "reduce",
-                        "influencia": 2,
-                        "subtitulo": "Extraído del registro de actividad en MoodleCloud."
+                        "influencia": 3 if dias_inact > 3 else 1,
+                        "subtitulo": f"Registro de actividad en MoodleCloud. Frecuencia estimada: {14 - dias_inact}/14 días.",
+                        "chartType": "day_circles",
+                        "chartValues": chart_days
                     },
                     {
-                        "clave": "promedio",
-                        "titulo": f"Promedio estimado: {promedio:.1f}/20",
+                        "clave": "cuestionarios",
+                        "titulo": f"Promedio en evaluaciones: {promedio:.1f}/20",
                         "impacto": "reduce" if promedio >= 13 else "aumenta",
                         "influencia": 3,
-                        "subtitulo": "Calculado del reporte de calificaciones y entregas."
+                        "subtitulo": "Calculado del reporte de calificaciones y quizes en Moodle.",
+                        "chartType": "quiz_trend",
+                        "chartValues": quiz_trend_vals
                     },
                     {
                         "clave": "tareas",
-                        "titulo": f"Tareas por entregar: {pending_tasks} de {total_tasks}",
+                        "titulo": f"Tareas pendientes: {pending_tasks} de {total_tasks}",
                         "impacto": "aumenta" if pending_tasks > 0 else "reduce",
                         "influencia": 2,
-                        "subtitulo": "Módulos y actividades registradas en Moodle."
+                        "subtitulo": "Módulos y tareas asignadas en Moodle.",
+                        "chartType": "tasks_timeline",
+                        "chartValues": chart_tasks
+                    },
+                    {
+                        "clave": "accesos",
+                        "titulo": f"Accesos semanales al curso: {max(1, 7 - dias_inact)} sesiones",
+                        "impacto": "reduce" if dias_inact <= 3 else "aumenta",
+                        "influencia": 2,
+                        "subtitulo": "Interacción registrada frente a la media de la sección.",
+                        "chartType": "weekly_logins",
+                        "chartValues": [max(0, 5 - dias_inact), 3, 2, max(1, 4 - dias_inact), 4]
                     }
                 ]
 

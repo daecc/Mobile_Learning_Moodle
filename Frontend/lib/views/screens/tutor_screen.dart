@@ -2,39 +2,101 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../data/models/chat_message_model.dart';
+import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/tutor_viewmodel.dart';
 
 /// Pantalla del Tutor Inteligente IA (Componente IAG-ML del Modelo M-learning).
-/// Actualmente estructurada como plantilla vacía para consolidar en la siguiente fase.
-class TutorScreen extends StatelessWidget {
+/// Asistente conversacional con andamiaje cognitivo adaptativo según métricas de Moodle.
+class TutorScreen extends StatefulWidget {
   const TutorScreen({super.key});
+
+  @override
+  State<TutorScreen> createState() => _TutorScreenState();
+}
+
+class _TutorScreenState extends State<TutorScreen> {
+  final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _enviar(String texto) {
+    if (texto.trim().isEmpty) return;
+    final authStudent = context.read<AuthViewModel>().student;
+    final studentId = authStudent?.idEstudiante ?? 'EST-0001';
+
+    _textController.clear();
+    context.read<TutorViewModel>().enviarMensaje(texto, studentId: studentId).then((_) {
+      _scrollToBottom();
+    });
+    _scrollToBottom();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeVm = context.watch<ThemeViewModel>();
+    final tutorVm = context.watch<TutorViewModel>();
+    final coursesVm = context.watch<CoursesViewModel>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
         backgroundColor: AppColors.surfaceOf(context),
         elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              'Tutor Inteligente IA',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimaryOf(context),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.brandSoftOf(context),
+                shape: BoxShape.circle,
               ),
+              child: const Icon(Icons.smart_toy_rounded, color: AppColors.brand, size: 20),
             ),
-            Text(
-              'Componente IAG-ML · Andamiaje cognitivo adaptativo',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textMutedOf(context),
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tutor Inteligente IA',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimaryOf(context),
+                    ),
+                  ),
+                  Text(
+                    tutorVm.selectedCourseName ?? 'Asistente Académico FISI',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMutedOf(context),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -45,6 +107,11 @@ class TutorScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            onPressed: () => tutorVm.reiniciarChat(),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondaryOf(context)),
+            tooltip: 'Reiniciar conversación',
+          ),
+          IconButton(
             onPressed: () => themeVm.toggleTheme(),
             icon: Icon(
               themeVm.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -52,173 +119,415 @@ class TutorScreen extends StatelessWidget {
             ),
             tooltip: themeVm.isDarkMode ? 'Modo claro' : 'Modo oscuro',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Contenedor de Icono Principal
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: AppColors.brandSoftOf(context),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.brand.withValues(alpha: 0.2), width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.smart_toy_rounded,
-                    size: 48,
-                    color: AppColors.brand,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Chip de estado
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandSoftOf(context),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.auto_awesome_rounded, size: 14, color: AppColors.brand),
-                      SizedBox(width: 6),
-                      Text(
-                        'ASISTENTE IA EN PREPARACIÓN',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.brand,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Título descriptivo
-                Text(
-                  'Tutoría Adaptativa y Resolución de Dudas',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimaryOf(context),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Explicación metodológica
-                Text(
-                  'Este módulo integrará el chat inteligente dialógico para apoyar al estudiante fuera del horario de clase: diagnóstico de patrones de diseño (Singleton, Observer, Factory), aclaración de tareas y recomendaciones adaptativas.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    height: 1.5,
-                    color: AppColors.textSecondaryOf(context),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Tarjeta de Vista Previa de Funcionalidades
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceOf(context),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderOf(context)),
-                    boxShadow: AppColors.cardShadowOf(context),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Capacidades de la IA en desarrollo:',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimaryOf(context),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _PlannedItem(
-                        icon: Icons.code_rounded,
-                        text: 'Detección y explicación de errores en patrones de diseño de software.',
-                      ),
-                      const SizedBox(height: 8),
-                      _PlannedItem(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        text: 'Tutoría conversacional contextualizada con los temas de Moodle.',
-                      ),
-                      const SizedBox(height: 8),
-                      _PlannedItem(
-                        icon: Icons.school_outlined,
-                        text: 'Plan de acción personalizado para reducir el porcentaje de riesgo.',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Botón volver
-                FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.brand,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(200, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text(
-                    'Volver a Mis Cursos',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
+        child: Column(
+          children: [
+            // Selector de Curso (Filtro contextual)
+            _CourseSelectorBar(
+              cursos: coursesVm.courses,
+              selectedCourseId: tutorVm.selectedCourseId,
+              onSelect: (cId, cName) => tutorVm.seleccionarCurso(cId, cName),
             ),
-          ),
+
+            // Lista de Mensajes
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                itemCount: tutorVm.mensajes.length + (tutorVm.isTyping ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == tutorVm.mensajes.length && tutorVm.isTyping) {
+                    return const _TypingIndicator();
+                  }
+                  final msg = tutorVm.mensajes[index];
+                  return _MessageBubble(
+                    mensaje: msg,
+                    onSugerenciaTap: (sug) => _enviar(sug),
+                  );
+                },
+              ),
+            ),
+
+            // Chips de Sugerencias Rápidas
+            if (tutorVm.sugerenciasActivas.isNotEmpty && !tutorVm.isTyping)
+              _QuickSuggestions(
+                sugerencias: tutorVm.sugerenciasActivas,
+                onSelect: (sug) => _enviar(sug),
+              ),
+
+            // Barra inferior de entrada
+            _InputBar(
+              controller: _textController,
+              isTyping: tutorVm.isTyping,
+              onSend: () => _enviar(_textController.text),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _PlannedItem extends StatelessWidget {
-  final IconData icon;
-  final String text;
+class _CourseSelectorBar extends StatelessWidget {
+  final List<dynamic> cursos;
+  final String? selectedCourseId;
+  final Function(String?, String?) onSelect;
 
-  const _PlannedItem({required this.icon, required this.text});
+  const _CourseSelectorBar({
+    required this.cursos,
+    required this.selectedCourseId,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: AppColors.brand),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: AppColors.textSecondaryOf(context),
-              height: 1.35,
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        border: Border(bottom: BorderSide(color: AppColors.borderOf(context))),
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: const Text('General / Todos'),
+              selected: selectedCourseId == null,
+              onSelected: (_) => onSelect(null, null),
+              selectedColor: AppColors.brandSoftOf(context),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: selectedCourseId == null ? FontWeight.w800 : FontWeight.w500,
+                color: selectedCourseId == null ? AppColors.brand : AppColors.textSecondaryOf(context),
+              ),
             ),
           ),
+          ...cursos.map((c) {
+            final isSelected = c.idCurso == selectedCourseId;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(c.codigoCurso),
+                selected: isSelected,
+                onSelected: (_) => onSelect(c.idCurso, c.nombreCurso),
+                selectedColor: AppColors.brandSoftOf(context),
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  color: isSelected ? AppColors.brand : AppColors.textSecondaryOf(context),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final ChatMessage mensaje;
+  final Function(String) onSugerenciaTap;
+
+  const _MessageBubble({
+    required this.mensaje,
+    required this.onSugerenciaTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final esUser = mensaje.esUsuario;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: esUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!esUser) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.brandSoftOf(context),
+              child: const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.brand),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: esUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: esUser
+                        ? AppColors.brand
+                        : AppColors.surfaceOf(context),
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(esUser ? 18 : 4),
+                      bottomRight: Radius.circular(esUser ? 4 : 18),
+                    ),
+                    border: esUser
+                        ? null
+                        : Border.all(color: AppColors.borderOf(context)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: _RichMarkdownText(
+                    texto: mensaje.texto,
+                    color: esUser ? Colors.white : AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${mensaje.fecha.hour.toString().padLeft(2, '0')}:${mensaje.fecha.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMutedOf(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (esUser) ...[
+            const SizedBox(width: 8),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.brand.withValues(alpha: 0.15),
+              child: const Icon(Icons.person_rounded, size: 16, color: AppColors.brand),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.brandSoftOf(context),
+            child: const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.brand),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceOf(context),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.borderOf(context)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Rumbo Tutor está escribiendo...',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textMutedOf(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickSuggestions extends StatelessWidget {
+  final List<String> sugerencias;
+  final Function(String) onSelect;
+
+  const _QuickSuggestions({
+    required this.sugerencias,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        itemCount: sugerencias.length,
+        itemBuilder: (context, index) {
+          final sug = sugerencias[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ActionChip(
+              backgroundColor: AppColors.surfaceOf(context),
+              side: BorderSide(color: AppColors.brand.withValues(alpha: 0.3)),
+              avatar: const Icon(Icons.help_outline_rounded, size: 14, color: AppColors.brand),
+              label: Text(
+                sug,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.brand,
+                ),
+              ),
+              onPressed: () => onSelect(sug),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _InputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final bool isTyping;
+  final VoidCallback onSend;
+
+  const _InputBar({
+    required this.controller,
+    required this.isTyping,
+    required this.onSend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        border: Border(top: BorderSide(color: AppColors.borderOf(context))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundOf(context),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.borderOf(context)),
+              ),
+              child: TextField(
+                controller: controller,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimaryOf(context),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Pregunta a tu Tutor IA sobre tus cursos...',
+                  hintStyle: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMutedOf(context),
+                  ),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: isTyping ? null : onSend,
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.send_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RichMarkdownText extends StatelessWidget {
+  final String texto;
+  final Color color;
+
+  const _RichMarkdownText({
+    required this.texto,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Parsea **negritas** para convertirlas a TextSpans estilizados sin asteriscos
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(texto)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(
+          TextSpan(
+            text: texto.substring(lastMatchEnd, match.start),
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: color,
+            ),
+          ),
+        );
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.45,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
-      ],
+      );
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < texto.length) {
+      spans.add(
+        TextSpan(
+          text: texto.substring(lastMatchEnd),
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.45,
+            color: color,
+          ),
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
     );
   }
 }

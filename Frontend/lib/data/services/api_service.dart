@@ -6,6 +6,7 @@ import '../../core/constants/api_constants.dart';
 import '../models/course_model.dart';
 import '../models/risk_detail_model.dart';
 import '../models/student_model.dart';
+import '../models/chat_message_model.dart';
 
 /// Cliente HTTP hacia la Rumbo API con respaldo offline (dataset de demostración).
 ///
@@ -101,6 +102,50 @@ class ApiService {
       throw Exception('Respuesta ${resp.statusCode}');
     } catch (_) {
       return getDemoRiskDetail(studentId, courseId);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tutor Inteligente IA
+  // ---------------------------------------------------------------------------
+
+  Future<TutorChatResponseModel> sendMessageToTutor({
+    required String studentId,
+    String? courseId,
+    required String message,
+    List<Map<String, String>> history = const [],
+  }) async {
+    try {
+      final resp = await _client
+          .post(
+            Uri.parse('$baseUrl${ApiConstants.tutorEndpoint}'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id_estudiante': studentId,
+              'id_curso': courseId,
+              'mensaje': message,
+              'historial': history,
+            }),
+          )
+          .timeout(ApiConstants.timeout);
+
+      if (resp.statusCode == 200) {
+        return TutorChatResponseModel.fromJson(
+          jsonDecode(resp.body) as Map<String, dynamic>,
+        );
+      }
+      throw Exception('Error del tutor (${resp.statusCode})');
+    } catch (e) {
+      // Fallback local en caso de desconexión
+      return TutorChatResponseModel(
+        respuesta:
+            'Hola, estoy operando en modo local asistido. Para mejorar tu desempeño, te recomiendo ingresar con frecuencia a Moodle y priorizar las tareas pendientes para mantener tu riesgo en zona segura.',
+        sugerencias: [
+          '¿Cómo organizo mis horarios?',
+          'Tips para estudiar mejor',
+          'Revisar mis tareas',
+        ],
+      );
     }
   }
 

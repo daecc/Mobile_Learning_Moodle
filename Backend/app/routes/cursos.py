@@ -6,7 +6,9 @@ from app.models import (
     CourseRiskSummary,
     RiskDistributionSummary,
     RiskDetailResponse,
-    MetacognitiveStat
+    MetacognitiveStat,
+    RiskFactorModel,
+    FactoresBundleModel
 )
 from app.database import get_db_connection
 
@@ -203,6 +205,44 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
             descripcion="Sin accesos recientes."
         ))
 
+    # Construir FactoresBundle (XAI Nielsen H6)
+    factores_bundle = None
+    if pred and pred["factores_json"]:
+        try:
+            raw_factores = json.loads(pred["factores_json"])
+            riesgos_list = []
+            favorables_list = []
+            for item in raw_factores:
+                f_model = RiskFactorModel(
+                    clave=item.get("clave", ""),
+                    titulo=item.get("titulo", ""),
+                    subtitulo=item.get("subtitulo", ""),
+                    impacto=item.get("impacto", "reduce"),
+                    influencia=item.get("influencia", 1),
+                    chartType=item.get("chartType"),
+                    chartValues=[float(v) for v in item.get("chartValues", [])]
+                )
+                if item.get("impacto") == "aumenta":
+                    riesgos_list.append(f_model)
+                else:
+                    favorables_list.append(f_model)
+
+            factores_bundle = FactoresBundleModel(
+                periodo="últimas 4 semanas",
+                sumanRiesgo=len(riesgos_list),
+                jueganFavor=len(favorables_list),
+                riesgos=riesgos_list,
+                favorables=favorables_list,
+                reflexionOpciones=[
+                    "Organizar mejor mis horarios de estudio",
+                    "Repasar con anticipación los módulos y temas complejos",
+                    "Preguntar más al docente en las sesiones en vivo",
+                    "Participar activamente en los foros del curso"
+                ]
+            )
+        except Exception:
+            factores_bundle = None
+
     pct = pred["porcentaje"] if pred else 85
     prob = pred["probabilidad"] if pred else 0.85
     nivel = pred["nivel_riesgo"] if pred else "CRITICO"
@@ -226,5 +266,6 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
         rango_max=r_max,
         paso_titulo=pred["paso_titulo"] if pred and pred["paso_titulo"] else "Revisar contenidos pendientes",
         paso_subtitulo=pred["paso_subtitulo"] if pred and pred["paso_subtitulo"] else "En el aula virtual",
-        paso_tipo=pred["paso_tipo"] if pred and pred["paso_tipo"] else "task"
+        paso_tipo=pred["paso_tipo"] if pred and pred["paso_tipo"] else "task",
+        factores=factores_bundle
     )

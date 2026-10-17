@@ -48,6 +48,23 @@ class StudentCoursesResponse(BaseModel):
     resumen_riesgo: RiskDistributionSummary
     cursos: List[CourseRiskSummary]
 
+class RiskFactorModel(BaseModel):
+    clave: str
+    titulo: str
+    subtitulo: str
+    impacto: str  # "aumenta" o "reduce"
+    influencia: int = 1
+    chartType: Optional[str] = None
+    chartValues: List[float] = []
+
+class FactoresBundleModel(BaseModel):
+    periodo: str = "últimas semanas"
+    sumanRiesgo: int = 0
+    jueganFavor: int = 0
+    riesgos: List[RiskFactorModel] = []
+    favorables: List[RiskFactorModel] = []
+    reflexionOpciones: List[str] = []
+
 class RiskDetailResponse(BaseModel):
     id_estudiante: str
     id_curso: str
@@ -66,6 +83,7 @@ class RiskDetailResponse(BaseModel):
     paso_titulo: Optional[str] = None
     paso_subtitulo: Optional[str] = None
     paso_tipo: Optional[str] = None
+    factores: Optional[FactoresBundleModel] = None
 
 class CustomPredictionRequest(BaseModel):
     carga_academica_actual: float = 5.0
@@ -84,3 +102,19 @@ class CustomPredictionResponse(BaseModel):
     porcentaje_riesgo: int
     nivel_riesgo: str
     riesgo_confirmado: int
+
+class ChatMessageModel(BaseModel):
+    rol: str = "user"  # "user" o "assistant"
+    contenido: str
+
+class TutorChatRequest(BaseModel):
+    id_estudiante: str
+    id_curso: Optional[str] = None
+    mensaje: str
+    historial: List[ChatMessageModel] = []
+
+class TutorChatResponse(BaseModel):
+    respuesta: str
+    sugerencias: List[str] = []
+    curso_contexto: Optional[str] = None
+    nivel_riesgo: Optional[str] = None

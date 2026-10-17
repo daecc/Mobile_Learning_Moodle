@@ -20,6 +20,7 @@ class ApiConstants {
   static const String loginEndpoint = '/api/auth/login';
   static const String coursesEndpoint = '/api/estudiantes';
   static const String predictEndpoint = '/api/predict';
+  static const String tutorEndpoint = '/api/tutor/chat';
 
   static const Duration timeout = Duration(seconds: 15);
 }
