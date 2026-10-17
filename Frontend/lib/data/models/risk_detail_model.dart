@@ -158,6 +158,16 @@ class RiskDetailResponse {
   bool get esSinEstimacion =>
       nivelRiesgo == 'SIN_ESTIMACION' || porcentajeRiesgo < 0;
 
+  String get cleanNombreCurso {
+    if (nombreCurso.contains(':')) {
+      final parts = nombreCurso.split(':');
+      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+        return parts.sublist(1).join(':').trim();
+      }
+    }
+    return nombreCurso;
+  }
+
   factory RiskDetailResponse.fromJson(Map<String, dynamic> json) {
     return RiskDetailResponse(
       idEstudiante: json['id_estudiante'] as String? ?? '',

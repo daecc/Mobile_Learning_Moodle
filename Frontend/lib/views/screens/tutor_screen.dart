@@ -11,7 +11,10 @@ import '../../viewmodels/tutor_viewmodel.dart';
 /// Pantalla del Tutor Inteligente IA (Componente IAG-ML del Modelo M-learning).
 /// Asistente conversacional con andamiaje cognitivo adaptativo según métricas de Moodle.
 class TutorScreen extends StatefulWidget {
-  const TutorScreen({super.key});
+  final String? initialCourseId;
+  final String? initialCourseName;
+
+  const TutorScreen({super.key, this.initialCourseId, this.initialCourseName});
 
   @override
   State<TutorScreen> createState() => _TutorScreenState();
@@ -20,6 +23,20 @@ class TutorScreen extends StatefulWidget {
 class _TutorScreenState extends State<TutorScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCourseId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TutorViewModel>().seleccionarCurso(
+              widget.initialCourseId,
+              widget.initialCourseName,
+            );
+      });
+    }
+  }
 
   @override
   void dispose() {

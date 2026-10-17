@@ -10,6 +10,7 @@ import '../widgets/factor_charts/day_circles_chart.dart';
 import '../widgets/factor_charts/quiz_trend_chart.dart';
 import '../widgets/factor_charts/tasks_timeline_chart.dart';
 import '../widgets/factor_charts/weekly_logins_chart.dart';
+import 'tutor_screen.dart';
 
 /// Pantalla explicativa: "¿Por qué este resultado?" con factores y reflexión.
 class FactorsScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _FactorsScreenState extends State<FactorsScreen> {
       backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
         title: Text(
-          'Explicabilidad (Nielsen H6)',
+          'Diagnóstico y Factores',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 16,
@@ -91,18 +92,18 @@ class _FactorsBody extends StatelessWidget {
         children: [
           Text(
             '¿Por qué ${detail.porcentajeRiesgo} %?',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
+            detail.cleanNombreCurso,
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 20),
@@ -136,13 +137,46 @@ class _FactorsBody extends StatelessWidget {
           _ReflectionCard(opciones: factores.reflexionOpciones),
           const SizedBox(height: 20),
           _CuestionarDatos(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TutorScreen(
+                    initialCourseId: detail.idCurso,
+                    initialCourseName: detail.cleanNombreCurso,
+                  ),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandSoftOf(context),
+                foregroundColor: AppColors.brand,
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.smart_toy_outlined, size: 20),
+              label: const Text(
+                'Consultar plan de mejora con Tutor IA',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           FilledButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Abriendo el curso en Moodle...')),
               );
             },
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
             child: const Text('Abrir curso en Moodle'),
           ),
         ],
@@ -177,7 +211,7 @@ class _HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.brandSoft,
+        color: AppColors.brandSoftOf(context),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -185,9 +219,9 @@ class _HeroCard extends StatelessWidget {
         children: [
           Text(
             'Basado en tus ${factores.periodo} de actividad en Moodle.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 12),
@@ -207,12 +241,12 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'Todo esto depende de hábitos que puedes cambiar: si cambian, '
             'la estimación también.',
             style: TextStyle(
               fontSize: 13.5,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -263,10 +297,10 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+        color: AppColors.textPrimaryOf(context),
       ),
     );
   }
@@ -285,9 +319,9 @@ class _FactorCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,10 +339,10 @@ class _FactorCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   factor.titulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: AppColors.textPrimaryOf(context),
                   ),
                 ),
               ),
@@ -319,9 +353,9 @@ class _FactorCard extends StatelessWidget {
             padding: const EdgeInsets.only(left: 18),
             child: Text(
               factor.subtitulo,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondaryOf(context),
               ),
             ),
           ),
@@ -349,25 +383,25 @@ class _ReflectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '¿Qué te está costando más?',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Tu respuesta nos ayuda a acompañarte mejor (solo tú la ves).',
-            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12.5, color: AppColors.textMutedOf(context)),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -377,7 +411,7 @@ class _ReflectionCard extends StatelessWidget {
               return ActionChip(
                 label: Text(op),
                 backgroundColor: AppColors.neutralSoft,
-                side: const BorderSide(color: AppColors.border),
+                side: BorderSide(color: AppColors.borderOf(context)),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -416,30 +450,63 @@ class _CuestionarDatos extends StatelessWidget {
   }
 
   void _mostrarDialogo(BuildContext context) {
-    showDialog<void>(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('¿Algún dato no cuadra?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Cuéntanos qué ves distinto y revisaremos la estimación.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            SizedBox(height: 12),
-            _MotivoOpcion('Ya entregué una tarea que figura pendiente'),
-            _MotivoOpcion('Entré al curso y no se refleja mi actividad'),
-            _MotivoOpcion('Mi nota registrada no es la correcta'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+      backgroundColor: AppColors.surfaceOf(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderOf(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '¿Algún dato no cuadra?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Cuéntanos qué ves distinto y revisaremos la estimación con el servidor.',
+                style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const _MotivoOpcion('Ya entregué una tarea que figura pendiente'),
+              const _MotivoOpcion('Entré al curso y no se refleja mi actividad'),
+              const _MotivoOpcion('Mi nota registrada no es la correcta'),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.brand,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Entendido'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -459,7 +526,10 @@ class _MotivoOpcion extends StatelessWidget {
           const Icon(Icons.radio_button_unchecked, size: 18),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(texto, style: const TextStyle(fontSize: 13.5)),
+            child: Text(
+              texto,
+              style: TextStyle(fontSize: 13.5, color: AppColors.textPrimaryOf(context)),
+            ),
           ),
         ],
       ),
@@ -479,20 +549,20 @@ class _SinFactores extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Sin estimación',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
+            detail.cleanNombreCurso,
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 40),
@@ -504,22 +574,22 @@ class _SinFactores extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Text(
               'Sin factores calculados aún',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          const Center(
+          Center(
             child: Text(
               'Necesitamos más actividad tuya en el curso para explicarte la estimación.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondaryOf(context)),
             ),
           ),
         ],

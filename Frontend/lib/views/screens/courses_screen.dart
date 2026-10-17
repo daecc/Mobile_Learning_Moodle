@@ -593,7 +593,7 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Estimaciones calculadas con IA y actividad real de Moodle (Nielsen H6).',
+            'Basado en tu actividad académica reciente y entregas de MoodleCloud.',
             style: TextStyle(fontSize: 11.5, color: AppColors.textMutedOf(context)),
           ),
         ],

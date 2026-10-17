@@ -10,7 +10,7 @@ import '../screens/login_screen.dart';
 import '../screens/metacognitive_screen.dart';
 import '../screens/tutor_screen.dart';
 
-/// Barra de navegación lateral (Drawer) que consolida todos los módulos del sistema.
+/// Barra de navegación lateral (Drawer) rediseñada con estética móvil limpia y humana.
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
 
@@ -25,19 +25,23 @@ class AppDrawer extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceOf(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.logout_rounded, color: AppColors.riskHigh, size: 24),
-            SizedBox(width: 10),
+            const Icon(Icons.logout_rounded, color: AppColors.riskHigh, size: 22),
+            const SizedBox(width: 10),
             Text(
               'Cerrar sesión',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                color: AppColors.textPrimaryOf(context),
+              ),
             ),
           ],
         ),
         content: Text(
-          '¿Estás seguro de que deseas salir de tu cuenta de Moodle? Tendrás que volver a ingresar tus credenciales.',
-          style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 14),
+          '¿Deseas salir de tu cuenta de Moodle? Tendrás que volver a autenticarte.',
+          style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13.5),
         ),
         actions: [
           TextButton(
@@ -49,20 +53,79 @@ class AppDrawer extends StatelessWidget {
               backgroundColor: AppColors.riskHigh,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              minimumSize: const Size(120, 42),
+              minimumSize: const Size(110, 40),
             ),
             onPressed: () {
-              Navigator.of(ctx).pop(); // Cierra diálogo
-              Navigator.of(context).pop(); // Cierra drawer
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
               context.read<AuthViewModel>().logout();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
               );
             },
-            child: const Text('Cerrar Sesión'),
+            child: const Text('Salir'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _mostrarTerminos(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceOf(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderOf(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Términos y Privacidad de Datos',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimaryOf(context),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Rumbo procesa tus registros académicos de Moodle exclusivamente con fines pedagógicos y de prevención del rezago en la UNMSM FISI. Tus credenciales de sesión se gestionan mediante tokens oficiales de Web Services y nunca se comparten con terceros.',
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.5,
+                color: AppColors.textSecondaryOf(context),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.brand,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Entendido'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -81,124 +144,104 @@ class AppDrawer extends StatelessWidget {
     return Drawer(
       backgroundColor: AppColors.surfaceOf(context),
       child: SafeArea(
-        top: false,
         child: Column(
           children: [
-            // Header del Drawer con perfil institucional
+            // Tarjeta de Perfil Flotante Superior
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
-              decoration: const BoxDecoration(
-                gradient: AppColors.brandGradient,
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundOf(context),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.borderOf(context)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          iniciales,
-                          style: const TextStyle(
-                            color: AppColors.brand,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.brand,
+                    child: Text(
+                      iniciales,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nombreEstudiante,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimaryOf(context),
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      // Chip indicador MoodleCloud
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        Text(
+                          emailEstudiante,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.textMutedOf(context),
+                          ),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.cloud_done_rounded, color: Colors.greenAccent, size: 14),
-                            SizedBox(width: 5),
-                            Text(
-                              'MoodleCloud',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandSoftOf(context),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'UNMSM FISI · 9no Ciclo',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.brand,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    nombreEstudiante,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    emailEstudiante,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ingeniería de Software · FISI UNMSM',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Opciones de Pantallas Consolidadas
+            const SizedBox(height: 8),
+
+            // Opciones de Navegación Limpias
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  _DrawerItem(
-                    icon: Icons.school_rounded,
-                    title: 'Mis Cursos y Riesgo',
-                    subtitle: 'Dashboard principal de asignaturas',
+                  _CleanDrawerTile(
+                    icon: Icons.book_outlined,
+                    title: 'Mis Asignaturas',
                     isSelected: currentRoute == 'courses',
-                    badgeText: '${coursesVm.courses.length}',
-                    onTap: () {
-                      Navigator.of(context).pop(); // Cierra drawer
-                    },
+                    badge: '${coursesVm.courses.length}',
+                    onTap: () => Navigator.of(context).pop(),
                   ),
-                  _DrawerItem(
-                    icon: Icons.insights_rounded,
-                    title: 'Control Metacognitivo',
-                    subtitle: 'Estrategia 4: Autorregulación',
-                    isSelected: currentRoute == 'metacognitive',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MetacognitiveScreen()),
-                      );
-                    },
-                  ),
-                  _DrawerItem(
-                    icon: Icons.smart_toy_rounded,
+                  _CleanDrawerTile(
+                    icon: Icons.smart_toy_outlined,
                     title: 'Tutor Inteligente IA',
-                    subtitle: 'Componente IAG-ML adaptativo',
                     isSelected: currentRoute == 'tutor',
-                    badgeText: 'IA',
+                    badge: 'IA',
                     badgeColor: AppColors.brand,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -207,10 +250,20 @@ class AppDrawer extends StatelessWidget {
                       );
                     },
                   ),
-                  _DrawerItem(
-                    icon: Icons.emoji_events_rounded,
-                    title: 'Gamificación y Logros',
-                    subtitle: 'Estrategia 5: Motivación y retos',
+                  _CleanDrawerTile(
+                    icon: Icons.calendar_today_outlined,
+                    title: 'Plan y Horarios de Estudio',
+                    isSelected: currentRoute == 'metacognitive',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MetacognitiveScreen()),
+                      );
+                    },
+                  ),
+                  _CleanDrawerTile(
+                    icon: Icons.military_tech_outlined,
+                    title: 'Logros y Metas',
                     isSelected: currentRoute == 'gamification',
                     onTap: () {
                       Navigator.of(context).pop();
@@ -220,91 +273,84 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
 
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(height: 1),
-                  ),
-
-                  // Sección de Ajustes Rápidos
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Text(
-                      'PREFERENCIAS',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMutedOf(context),
-                        letterSpacing: 0.8,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    child: Divider(color: AppColors.borderOf(context), height: 1),
+                  ),
+
+                  // Ajustes y Preferencias
+                  _CleanDrawerTile(
+                    icon: Icons.tune_rounded,
+                    title: 'Ajustes y Notificaciones',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Notificaciones activas para entregas de Moodle')),
+                      );
+                    },
+                  ),
+
+                  // Modo Oscuro
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: Icon(
+                        themeVm.isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                        size: 20,
+                        color: themeVm.isDarkMode ? Colors.amber : AppColors.textSecondaryOf(context),
+                      ),
+                      title: Text(
+                        'Modo Oscuro',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimaryOf(context),
+                        ),
+                      ),
+                      trailing: Transform.scale(
+                        scale: 0.85,
+                        child: Switch(
+                          value: themeVm.isDarkMode,
+                          activeThumbColor: AppColors.brand,
+                          onChanged: (_) => themeVm.toggleTheme(),
+                        ),
                       ),
                     ),
                   ),
 
-                  // Toggle Modo Oscuro dentro del Drawer
-                  ListTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    leading: Icon(
-                      themeVm.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                      color: themeVm.isDarkMode ? Colors.amber : AppColors.brand,
-                      size: 22,
-                    ),
-                    title: Text(
-                      'Modo Oscuro',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimaryOf(context),
-                      ),
-                    ),
-                    trailing: Switch(
-                      value: themeVm.isDarkMode,
-                      activeThumbColor: AppColors.brand,
-                      onChanged: (_) => themeVm.toggleTheme(),
-                    ),
+                  // Términos y Condiciones
+                  _CleanDrawerTile(
+                    icon: Icons.description_outlined,
+                    title: 'Términos y Privacidad',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _mostrarTerminos(context);
+                    },
                   ),
 
-                  // Botón Cerrar Sesión
-                  ListTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    leading: const Icon(
-                      Icons.logout_rounded,
-                      color: AppColors.riskHigh,
-                      size: 22,
-                    ),
-                    title: const Text(
-                      'Cerrar Sesión',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.riskHigh,
-                      ),
-                    ),
+                  // Cerrar Sesión
+                  _CleanDrawerTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Cerrar Sesión',
+                    color: AppColors.riskHigh,
                     onTap: () => _confirmarCerrarSesion(context),
                   ),
                 ],
               ),
             ),
 
-            // Footer institucional
+            // Footer minimalista
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.borderOf(context))),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textMutedOf(context)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Rumbo v1.0.0 · Mobile Learning & IA',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMutedOf(context),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Rumbo Mobile v1.0',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMutedOf(context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -314,80 +360,66 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
-class _DrawerItem extends StatelessWidget {
+class _CleanDrawerTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
   final bool isSelected;
-  final String? badgeText;
+  final String? badge;
   final Color? badgeColor;
+  final Color? color;
   final VoidCallback onTap;
 
-  const _DrawerItem({
+  const _CleanDrawerTile({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    this.badgeText,
+    this.isSelected = false,
+    this.badge,
     this.badgeColor,
+    this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = AppColors.brand;
+    final effectiveColor = color ?? (isSelected ? AppColors.brand : AppColors.textPrimaryOf(context));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: ListTile(
+        onTap: onTap,
+        dense: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tileColor: isSelected ? AppColors.brandSoftOf(context) : Colors.transparent,
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.brand : AppColors.brandSoftOf(context),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            color: isSelected ? Colors.white : activeColor,
-            size: 20,
-          ),
+        leading: Icon(
+          icon,
+          size: 20,
+          color: color ?? (isSelected ? AppColors.brand : AppColors.textSecondaryOf(context)),
         ),
         title: Text(
           title,
           style: TextStyle(
-            fontSize: 13.5,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-            color: isSelected ? activeColor : AppColors.textPrimaryOf(context),
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: effectiveColor,
           ),
         ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.textMutedOf(context),
-          ),
-        ),
-        trailing: badgeText != null
+        trailing: badge != null
             ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: badgeColor ?? AppColors.brandSoftOf(context),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  badgeText!,
+                  badge!,
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: badgeColor != null ? Colors.white : activeColor,
+                    fontWeight: FontWeight.w700,
+                    color: badgeColor != null ? Colors.white : AppColors.brand,
                   ),
                 ),
               )
             : null,
-        onTap: onTap,
       ),
     );
   }

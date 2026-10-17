@@ -77,7 +77,7 @@ class CourseCard extends StatelessWidget {
 
                         // Nombre del curso
                         Text(
-                          curso.nombreCurso,
+                          curso.cleanNombreCurso,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

@@ -60,7 +60,7 @@ void main() {
     expect(find.text('2 moderado'), findsOneWidget);
     expect(find.text('1 seguro'), findsOneWidget);
     expect(
-      find.text('Estimaciones calculadas con IA y actividad real de Moodle (Nielsen H6).'),
+      find.text('Basado en tu actividad académica reciente y entregas de MoodleCloud.'),
       findsOneWidget,
     );
 

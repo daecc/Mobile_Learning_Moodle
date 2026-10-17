@@ -8,6 +8,7 @@ import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
 import '../widgets/risk_gauge.dart';
 import 'factors_screen.dart';
+import 'tutor_screen.dart';
 
 /// Panel de riesgo de un curso (tacómetro + alerta + siguiente paso).
 class RiskScreen extends StatefulWidget {
@@ -111,17 +112,17 @@ class _EstimacionView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
-              fontSize: 24,
+            detail.cleanNombreCurso,
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             detail.actualizadoLabel ?? 'Actualizado hoy, 07:30 · se recalcula a diario',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12.5, color: AppColors.textMutedOf(context)),
           ),
           const SizedBox(height: 18),
           if (esCritico) ...[
@@ -179,9 +180,9 @@ class _EstimacionView extends StatelessWidget {
           Center(
             child: Text(
               'Rango probable: ${detail.rangoMin}\u2013${detail.rangoMax} %',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondaryOf(context),
               ),
             ),
           ),
@@ -210,73 +211,155 @@ class _EstimacionView extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => _abrirMoodle(context),
+                  onPressed: () => abrirMoodleModal(context, detail.cleanNombreCurso),
                   child: const Text('Ir a Moodle'),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TutorScreen(initialCourseId: detail.idCurso),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandSoftOf(context),
+                foregroundColor: AppColors.brand,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.smart_toy_outlined, size: 20),
+              label: const Text(
+                'Consultar con Tutor IA',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _abrirMoodle(BuildContext context) {
-    showDialog(
+  static void abrirMoodleModal(BuildContext context, String nombreCurso) {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.school_rounded, color: AppColors.brand),
-            SizedBox(width: 10),
-            Text('Aula Virtual Moodle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              detail.nombreCurso,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Plataforma oficial en la nube:',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.brandSoft,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.brand.withValues(alpha: 0.2)),
-              ),
-              child: const SelectableText(
-                'https://rumbo-mobile-learning.moodlecloud.com',
-                style: TextStyle(
-                  color: AppColors.brand,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+      backgroundColor: AppColors.surfaceOf(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderOf(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Ingresa con tus credenciales de estudiante para ver el material de clase, entregas y foros de debate.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
-            ),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Entendido'),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandSoftOf(context),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.school_rounded, color: AppColors.brand, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Aula Virtual MoodleCloud',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimaryOf(context),
+                          ),
+                        ),
+                        Text(
+                          'UNMSM FISI · Plataforma Oficial',
+                          style: TextStyle(fontSize: 12, color: AppColors.textMutedOf(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                nombreCurso,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundOf(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderOf(context)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.link_rounded, size: 18, color: AppColors.brand),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: SelectableText(
+                        'https://rumbo-mobile-learning.moodlecloud.com',
+                        style: TextStyle(
+                          color: AppColors.brand,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Ingresa con tus credenciales de estudiante para ver las tareas, foros y calificaciones.',
+                style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 12.5),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.brand,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                  label: const Text('Abrir Moodle'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -375,17 +458,17 @@ class _SinEstimacionView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
-              fontSize: 24,
+            detail.cleanNombreCurso,
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             detail.actualizadoLabel ?? 'Revisado hoy, 07:30',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12.5, color: AppColors.textMutedOf(context)),
           ),
           const SizedBox(height: 30),
           const Center(
@@ -396,13 +479,13 @@ class _SinEstimacionView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Text(
               'Sin estimación todavía',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
           ),
@@ -412,7 +495,7 @@ class _SinEstimacionView extends StatelessWidget {
               detail.mensajeSinEstimacion ??
                   'Aún no hay suficiente actividad para estimar',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondaryOf(context)),
             ),
           ),
           const SizedBox(height: 28),
@@ -420,9 +503,9 @@ class _SinEstimacionView extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.surfaceOf(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.borderOf(context)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,18 +513,18 @@ class _SinEstimacionView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Datos reunidos',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
                     Text(
                       detail.progresoSemana ?? 'Semana 1 de 2',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
-                        color: AppColors.textMuted,
+                        color: AppColors.textMutedOf(context),
                       ),
                     ),
                   ],
@@ -463,11 +546,7 @@ class _SinEstimacionView extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           FilledButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Abriendo el curso en Moodle...')),
-              );
-            },
+            onPressed: () => _EstimacionView.abrirMoodleModal(context, detail.cleanNombreCurso),
             child: const Text('Abrir curso en Moodle'),
           ),
         ],

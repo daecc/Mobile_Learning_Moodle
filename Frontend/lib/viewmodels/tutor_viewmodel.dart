@@ -26,7 +26,7 @@ class TutorViewModel extends ChangeNotifier {
   String? get selectedCourseName => _selectedCourseName;
   List<String> get sugerenciasActivas => _sugerenciasActivas;
 
-  void seleccionarCurso(String? courseId, String? courseName) {
+  void seleccionarCurso(String? courseId, [String? courseName]) {
     _selectedCourseId = courseId;
     _selectedCourseName = courseName;
     notifyListeners();
