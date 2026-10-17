@@ -5,7 +5,9 @@ import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../screens/gamification_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/metacognitive_screen.dart';
 import '../screens/tutor_screen.dart';
 
 /// Barra de navegación lateral (Drawer) rediseñada con estética móvil limpia y humana.
@@ -227,6 +229,28 @@ class AppDrawer extends StatelessWidget {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const TutorScreen()),
+                      );
+                    },
+                  ),
+                  _CleanDrawerTile(
+                    icon: Icons.insights_rounded,
+                    title: 'Control Metacognitivo',
+                    isSelected: currentRoute == 'metacognitive',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MetacognitiveScreen()),
+                      );
+                    },
+                  ),
+                  _CleanDrawerTile(
+                    icon: Icons.emoji_events_outlined,
+                    title: 'Gamificación y Logros',
+                    isSelected: currentRoute == 'gamification',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GamificationScreen()),
                       );
                     },
                   ),

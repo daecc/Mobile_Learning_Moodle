@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'data/services/api_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/courses_viewmodel.dart';
+import 'viewmodels/metacognitive_viewmodel.dart';
 import 'viewmodels/riesgo_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
 import 'viewmodels/tutor_viewmodel.dart';
@@ -37,6 +38,9 @@ class RumboBootstrap extends StatelessWidget {
         ),
         ChangeNotifierProvider<TutorViewModel>(
           create: (_) => TutorViewModel(apiService: apiService),
+        ),
+        ChangeNotifierProvider<MetacognitiveViewModel>(
+          create: (_) => MetacognitiveViewModel(apiService: apiService),
         ),
       ],
       child: RumboApp(authVm: authVm),
