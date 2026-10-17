@@ -4,44 +4,48 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color brand = Color(0xFF2E5BFF);
-  static const Color brandDark = Color(0xFF1E3BB8);
-  static const Color brandSoft = Color(0xFFEFF3FF);
+  static const Color brand = Color(0xFF1E3A8A); // Deep Navy oficial
+  static const Color brandDark = Color(0xFF0F172A); // Slate 900
+  static const Color brandSoft = Color(0xFFEFF6FF); // Slate/Blue 50
 
   static const LinearGradient brandGradient = LinearGradient(
-    colors: [Color(0xFF2E5BFF), Color(0xFF1B38B0)],
+    colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  static const Color riskLow = Color(0xFF2B8A3E);
-  static const Color riskLowSoft = Color(0xFFEBFBEE);
+  // Estados semánticos limpios y funcionales
+  static const Color riskLow = Color(0xFF059669); // Emerald 600
+  static const Color riskLowSoft = Color(0xFFD1FAE5); // Mint 100 suave
+  static const Color riskLowText = Color(0xFF065F46); // Emerald 800
 
-  static const Color riskMedium = Color(0xFFF76707);
-  static const Color riskMediumSoft = Color(0xFFFFF4E6);
+  static const Color riskMedium = Color(0xFFD97706); // Amber 600
+  static const Color riskMediumSoft = Color(0xFFFEF3C7); // Amber 100
+  static const Color riskMediumText = Color(0xFF92400E);
 
-  static const Color riskHigh = Color(0xFFE03131);
-  static const Color riskHighSoft = Color(0xFFFFECEC);
+  static const Color riskHigh = Color(0xFFE11D48); // Rose 600
+  static const Color riskHighSoft = Color(0xFFFEE2E2); // Rose 100
+  static const Color riskHighText = Color(0xFF991B1B);
 
-  static const Color neutral = Color(0xFF868E96);
-  static const Color neutralSoft = Color(0xFFF1F3F5);
+  static const Color neutral = Color(0xFF64748B); // Slate 500
+  static const Color neutralSoft = Color(0xFFE2E8F0); // Slate 200
 
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color background = Color(0xFFF8F9FA);
-  static const Color border = Color(0xFFE9ECEF);
+  static const Color background = Color(0xFFF8FAFC); // Slate 50 limpio
+  static const Color border = Color(0xFFE2E8F0); // Slate 200
 
-  static const Color textPrimary = Color(0xFF1A1D20);
-  static const Color textSecondary = Color(0xFF495057);
-  static const Color textMuted = Color(0xFF868E96);
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF475569); // Slate 600
+  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
 
-  // Paleta Dark Mode
-  static const Color surfaceDark = Color(0xFF1E1E24);
-  static const Color backgroundDark = Color(0xFF121216);
-  static const Color borderDark = Color(0xFF2A2A34);
-  static const Color textPrimaryDark = Color(0xFFF8F9FA);
-  static const Color textSecondaryDark = Color(0xFFCED4DA);
-  static const Color textMutedDark = Color(0xFF909296);
-  static const Color brandSoftDark = Color(0xFF1E284A);
+  // Paleta Dark Mode (Obsidian / Slate profundo)
+  static const Color surfaceDark = Color(0xFF151C28);
+  static const Color backgroundDark = Color(0xFF0B0F17);
+  static const Color borderDark = Color(0xFF1E293B);
+  static const Color textPrimaryDark = Color(0xFFF8FAFC);
+  static const Color textSecondaryDark = Color(0xFF94A3B8);
+  static const Color textMutedDark = Color(0xFF64748B);
+  static const Color brandSoftDark = Color(0xFF1E293B);
 
   /// Sombra suave y moderna para tarjetas en modo claro
   static List<BoxShadow> get cardShadow => [

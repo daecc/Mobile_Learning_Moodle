@@ -43,7 +43,7 @@ class _RiskScreenState extends State<RiskScreen> {
       backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(
         title: Text(
-          detail != null ? detail.codigoCurso : 'Diagnóstico de Riesgo',
+          'Diagnóstico de Riesgo',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 16,

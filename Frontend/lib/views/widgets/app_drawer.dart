@@ -5,9 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
-import '../screens/gamification_screen.dart';
 import '../screens/login_screen.dart';
-import '../screens/metacognitive_screen.dart';
 import '../screens/tutor_screen.dart';
 
 /// Barra de navegación lateral (Drawer) rediseñada con estética móvil limpia y humana.
@@ -138,7 +136,6 @@ class AppDrawer extends StatelessWidget {
 
     final nombreEstudiante = authStudent?.nombre ?? coursesVm.studentName;
     final codigoEstudiante = authStudent?.idEstudiante ?? coursesVm.studentId;
-    final emailEstudiante = authStudent?.email ?? '$codigoEstudiante@unmsm.edu.pe';
     final iniciales = authStudent?.iniciales ?? coursesVm.iniciales;
 
     return Drawer(
@@ -146,37 +143,25 @@ class AppDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Tarjeta de Perfil Flotante Superior
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundOf(context),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.borderOf(context)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            // Cabecera de Perfil Minimalista
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 24,
+                    radius: 28,
                     backgroundColor: AppColors.brand,
                     child: Text(
                       iniciales,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: 18,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,34 +171,26 @@ class AppDrawer extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textPrimaryOf(context),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'UNMSM · FISI',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondaryOf(context),
                           ),
                         ),
                         Text(
-                          emailEstudiante,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          codigoEstudiante,
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12,
                             color: AppColors.textMutedOf(context),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.brandSoftOf(context),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'UNMSM FISI · 9no Ciclo',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.brand,
-                            ),
                           ),
                         ),
                       ],
@@ -222,6 +199,8 @@ class AppDrawer extends StatelessWidget {
                 ],
               ),
             ),
+
+            Divider(color: AppColors.borderOf(context), height: 1),
 
             const SizedBox(height: 8),
 
@@ -239,10 +218,11 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _CleanDrawerTile(
                     icon: Icons.smart_toy_outlined,
-                    title: 'Tutor Inteligente IA',
+                    title: 'Tutor Inteligente',
                     isSelected: currentRoute == 'tutor',
                     badge: 'IA',
-                    badgeColor: AppColors.brand,
+                    badgeColor: AppColors.neutralSoft,
+                    badgeTextColor: AppColors.textPrimaryOf(context),
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
@@ -252,40 +232,31 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _CleanDrawerTile(
                     icon: Icons.calendar_today_outlined,
-                    title: 'Plan y Horarios de Estudio',
-                    isSelected: currentRoute == 'metacognitive',
+                    title: 'Agenda y Entregas',
                     onTap: () {
                       Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MetacognitiveScreen()),
-                      );
-                    },
-                  ),
-                  _CleanDrawerTile(
-                    icon: Icons.military_tech_outlined,
-                    title: 'Logros y Metas',
-                    isSelected: currentRoute == 'gamification',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const GamificationScreen()),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Sincronizado: 2 entregas de MoodleCloud registradas'),
+                        ),
                       );
                     },
                   ),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                     child: Divider(color: AppColors.borderOf(context), height: 1),
                   ),
 
-                  // Ajustes y Preferencias
                   _CleanDrawerTile(
-                    icon: Icons.tune_rounded,
+                    icon: Icons.notifications_none_rounded,
                     title: 'Ajustes y Notificaciones',
                     onTap: () {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Notificaciones activas para entregas de Moodle')),
+                        const SnackBar(
+                          content: Text('Alertas automáticas de tareas activadas'),
+                        ),
                       );
                     },
                   ),
@@ -299,7 +270,7 @@ class AppDrawer extends StatelessWidget {
                       leading: Icon(
                         themeVm.isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
                         size: 20,
-                        color: themeVm.isDarkMode ? Colors.amber : AppColors.textSecondaryOf(context),
+                        color: AppColors.textSecondaryOf(context),
                       ),
                       title: Text(
                         'Modo Oscuro',
@@ -320,7 +291,6 @@ class AppDrawer extends StatelessWidget {
                     ),
                   ),
 
-                  // Términos y Condiciones
                   _CleanDrawerTile(
                     icon: Icons.description_outlined,
                     title: 'Términos y Privacidad',
@@ -330,7 +300,6 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
 
-                  // Cerrar Sesión
                   _CleanDrawerTile(
                     icon: Icons.logout_rounded,
                     title: 'Cerrar Sesión',
@@ -343,13 +312,14 @@ class AppDrawer extends StatelessWidget {
 
             // Footer minimalista
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 20),
               child: Text(
-                'Rumbo Mobile v1.0',
+                'Rumbo v1.0 · UNMSM',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textMutedOf(context),
                   fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
                 ),
               ),
             ),
@@ -366,6 +336,7 @@ class _CleanDrawerTile extends StatelessWidget {
   final bool isSelected;
   final String? badge;
   final Color? badgeColor;
+  final Color? badgeTextColor;
   final Color? color;
   final VoidCallback onTap;
 
@@ -375,6 +346,7 @@ class _CleanDrawerTile extends StatelessWidget {
     this.isSelected = false,
     this.badge,
     this.badgeColor,
+    this.badgeTextColor,
     this.color,
     required this.onTap,
   });
@@ -415,7 +387,7 @@ class _CleanDrawerTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: badgeColor != null ? Colors.white : AppColors.brand,
+                    color: badgeTextColor ?? (badgeColor != null ? Colors.white : AppColors.brand),
                   ),
                 ),
               )

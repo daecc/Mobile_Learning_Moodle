@@ -49,15 +49,7 @@ class CourseRiskSummary {
   bool get esSinEstimacion =>
       nivelRiesgo == 'SIN_ESTIMACION' || porcentajeRiesgo < 0;
 
-  String get cleanNombreCurso {
-    if (nombreCurso.contains(':')) {
-      final parts = nombreCurso.split(':');
-      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
-        return parts.sublist(1).join(':').trim();
-      }
-    }
-    return nombreCurso;
-  }
+  String get cleanNombreCurso => formatCourseTitle(nombreCurso);
 
   factory CourseRiskSummary.fromJson(Map<String, dynamic> json) {
     return CourseRiskSummary(
@@ -104,4 +96,51 @@ class StudentCoursesResponse {
           .toList(),
     );
   }
+}
+
+/// Transforma nombres crudos de Moodle (ej. "Curso202W0907-TALLER_DE_CONSTRUCCION_DE_SOFTWARE_MOVIL-2018-1_26.2")
+/// en títulos limpios y legibles para estudiantes (ej. "Taller de Construcción de Software Móvil").
+String formatCourseTitle(String raw) {
+  if (raw.trim().isEmpty) return raw;
+  String name = raw.trim();
+
+  // 1. Eliminar prefijos con dos puntos ("Curso202W0907-2023-1: GESTION...")
+  if (name.contains(':')) {
+    final parts = name.split(':');
+    if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+      name = parts.sublist(1).join(':').trim();
+    }
+  }
+
+  // 2. Eliminar códigos automáticos al inicio (Curso202W0907-, CUR-01, etc.)
+  name = name.replaceFirst(RegExp(r'^Curso[A-Za-z0-9_-]+[-_:]\s*', caseSensitive: false), '');
+  name = name.replaceFirst(RegExp(r'^(CUR|MAT|INF|SIS)[-_]\d+[-_:]\s*', caseSensitive: false), '');
+
+  // 3. Eliminar sufijos de ciclo o periodo (-2018-1_26.2, -2023-1, _26.2)
+  name = name.replaceFirst(RegExp(r'[-_]\d{4}[-_]\d.*$'), '');
+  name = name.replaceFirst(RegExp(r'[-_]\d+(\.\d+)?$'), '');
+
+  // 4. Reemplazar guiones bajos por espacios
+  name = name.replaceAll('_', ' ');
+  name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  // 5. Convertir MAYÚSCULAS sostenidas a Title Case humano
+  if (name.length > 2 && name == name.toUpperCase()) {
+    final words = name.split(' ');
+    final titledWords = words.map((w) {
+      if (w.isEmpty) return '';
+      final lower = w.toLowerCase();
+      if (['de', 'del', 'la', 'las', 'el', 'los', 'en', 'y', 'para', 'con', 'a', 'o', 'por'].contains(lower)) {
+        return lower;
+      }
+      return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+    }).toList();
+
+    if (titledWords.isNotEmpty && titledWords.first.isNotEmpty) {
+      titledWords[0] = '${titledWords[0][0].toUpperCase()}${titledWords[0].substring(1)}';
+    }
+    name = titledWords.join(' ');
+  }
+
+  return name.isNotEmpty ? name : raw;
 }

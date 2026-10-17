@@ -233,7 +233,7 @@ class _CourseSelectorBar extends StatelessWidget {
               child: ChoiceChip(
                 label: Text(c.codigoCurso),
                 selected: isSelected,
-                onSelected: (_) => onSelect(c.idCurso, c.nombreCurso),
+                onSelected: (_) => onSelect(c.idCurso, c.cleanNombreCurso),
                 selectedColor: AppColors.brandSoftOf(context),
                 labelStyle: TextStyle(
                   fontSize: 12,

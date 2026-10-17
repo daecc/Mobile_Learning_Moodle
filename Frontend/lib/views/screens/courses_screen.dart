@@ -329,6 +329,7 @@ class _LoadedState extends StatelessWidget {
         children: [
           // Header Superior con perfil, tema y acción de cerrar sesión
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Builder(
                 builder: (drawerCtx) => IconButton(
@@ -344,21 +345,21 @@ class _LoadedState extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hola, ${vm.primerNombre} 👋',
+                      'Mis Cursos',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondaryOf(context),
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimaryOf(context),
+                        letterSpacing: -0.7,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Mis Cursos',
+                      'Hola, ${vm.primerNombre}',
                       style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimaryOf(context),
-                        letterSpacing: -0.5,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondaryOf(context),
                       ),
                     ),
                   ],
@@ -499,102 +500,109 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF14244D) : AppColors.brand;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceOf(context),
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderOf(context)),
-        boxShadow: AppColors.cardShadowOf(context),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black45 : AppColors.brand.withValues(alpha: 0.22),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.brandSoftOf(context),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.analytics_outlined,
-                  color: AppColors.brand,
-                  size: 20,
-                ),
+              Icon(
+                Icons.school_outlined,
+                color: Colors.white.withValues(alpha: 0.85),
+                size: 26,
               ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Diagnóstico Predictivo',
+                  'Resumen Académico',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.brand,
-                    letterSpacing: 0.3,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.backgroundOf(context),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  '$totalCursos cursos',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondaryOf(context),
+                  '$totalCursos asignaturas',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             _mensaje,
-            style: TextStyle(
-              fontSize: 15,
+            style: const TextStyle(
+              fontSize: 15.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimaryOf(context),
+              color: Colors.white,
               height: 1.35,
             ),
           ),
           const SizedBox(height: 14),
 
-          // Chips de resumen por niveles
+          // Chips de resumen limpios y de alto contraste
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
+              if (resumen.critico > 0)
+                _StatusPill(
+                  icono: Icons.warning_rounded,
+                  texto: '${resumen.critico} crítico',
+                  color: const Color(0xFF991B1B),
+                  fondo: const Color(0xFFFEE2E2),
+                ),
+              if (resumen.moderado > 0)
+                _StatusPill(
+                  icono: Icons.trending_down_rounded,
+                  texto: '${resumen.moderado} moderado',
+                  color: const Color(0xFF92400E),
+                  fondo: const Color(0xFFFEF3C7),
+                ),
               _StatusPill(
-                icono: Icons.warning_rounded,
-                texto: '${resumen.critico} crítico',
-                color: AppColors.riskHigh,
-                fondo: AppColors.riskHighSoft,
-              ),
-              _StatusPill(
-                icono: Icons.trending_down_rounded,
-                texto: '${resumen.moderado} moderado',
-                color: AppColors.riskMedium,
-                fondo: AppColors.riskMediumSoft,
-              ),
-              _StatusPill(
-                icono: Icons.check_circle_outline_rounded,
+                icono: Icons.check_circle_rounded,
                 texto: '${resumen.bajo} seguro',
-                color: AppColors.riskLow,
-                fondo: AppColors.riskLowSoft,
+                color: const Color(0xFF065F46),
+                fondo: const Color(0xFFD1FAE5),
               ),
             ],
           ),
           const SizedBox(height: 14),
           Text(
             'Basado en tu actividad académica reciente y entregas de MoodleCloud.',
-            style: TextStyle(fontSize: 11.5, color: AppColors.textMutedOf(context)),
+            style: TextStyle(
+              fontSize: 11.5,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
           ),
         ],
       ),
@@ -618,7 +626,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: fondo,
         borderRadius: BorderRadius.circular(10),
@@ -626,14 +634,14 @@ class _StatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icono, size: 14, color: color),
+          Icon(icono, size: 15, color: color),
           const SizedBox(width: 5),
           Text(
             texto,
             style: TextStyle(
               color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
             ),
           ),
         ],

@@ -9,6 +9,9 @@ from app.database import get_db_connection
 
 router = APIRouter(prefix="/api/tutor", tags=["Tutor Inteligente IA"])
 
+# Cache en memoria del modelo activo y verificado
+_cached_working_model: Optional[tuple[str, str]] = None
+
 # Prompt base pedagógico para Rumbo Tutor (Andamiaje cognitivo)
 SYSTEM_PROMPT = """Eres "Rumbo Tutor", un asistente pedagógico inteligente en la app móvil Rumbo (UNMSM FISI).
 
@@ -181,74 +184,133 @@ def chat_with_tutor(req: TutorChatRequest):
         if env_p.exists():
             for line in env_p.read_text(encoding="utf-8").splitlines():
                 if line.startswith("GEMINI_API_KEY="):
-                    gemini_key = line.split("=", 1)[1].strip()
+                    gemini_key = line.split("=", 1)[1].strip().strip("'\"")
                     os.environ["GEMINI_API_KEY"] = gemini_key
                     break
 
     if gemini_key:
-        try:
-            # Modelo rápido y disponible con la API Key actual
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={gemini_key}"
-            # Formatear el historial de chat para Gemini
-            contents_payload = []
-            
-            # Contexto inicial silencioso como mensaje de sistema
-            system_instruction = (
-                f"{SYSTEM_PROMPT}\n\n"
-                f"[DATOS SILENCIOSOS DEL ALUMNO - NO REPETIR EN CADA MENSAJE]:\n"
-                f"Nombre: {nombre} | Curso: {curso_nombre or 'General'} | Nivel de Riesgo: {nivel_riesgo} | "
-                f"Inactividad: {dias_inact} días | Tareas pendientes: {tareas_pen}.\n"
-                f"REGLA DE ORO: Responde directo y al grano a lo que pregunta el alumno en MÁXIMO 40 a 60 palabras. "
-                f"NUNCA comiences diciendo 'Hola Joseph, qué gusto saludarte, veo que tu nivel es bajo...'. Sé natural y breve."
-            )
+        gemini_key = gemini_key.strip().strip("'\"")
 
-            # Si hay historial previo, agregarlo para mantener el hilo
-            if req.historial and len(req.historial) > 1:
-                for h in req.historial[-5:-1]:
-                    role = "user" if h.rol == "user" else "model"
-                    contents_payload.append({
-                        "role": role,
-                        "parts": [{"text": h.contenido}]
-                    })
+    if gemini_key:
+        # Contexto inicial silencioso como mensaje de sistema
+        system_instruction = (
+            f"{SYSTEM_PROMPT}\n\n"
+            f"[DATOS SILENCIOSOS DEL ALUMNO - NO REPETIR EN CADA MENSAJE]:\n"
+            f"Nombre: {nombre} | Curso: {curso_nombre or 'General'} | Nivel de Riesgo: {nivel_riesgo} | "
+            f"Inactividad: {dias_inact} días | Tareas pendientes: {tareas_pen}.\n"
+            f"REGLA DE ORO: Responde directo y al grano a lo que pregunta el alumno en MÁXIMO 40 a 60 palabras. "
+            f"NUNCA comiences diciendo 'Hola Joseph, qué gusto saludarte, veo que tu nivel es bajo...'. Sé natural y breve."
+        )
 
-            # Mensaje actual del alumno con recordatorio de brevedad
-            alumno_prompt = (
-                f"{req.mensaje}\n\n"
-                f"(Instrucción obligatoria: Responde en 2 o 3 líneas concisas, sin saludos largos ni repetir mi diagnóstico)."
-            )
-            contents_payload.append({
-                "role": "user",
-                "parts": [{"text": alumno_prompt}]
-            })
+        # Formatear el historial de chat para Gemini
+        contents_payload = []
+        if req.historial and len(req.historial) > 1:
+            for h in req.historial[-5:-1]:
+                role = "user" if h.rol == "user" else "model"
+                contents_payload.append({
+                    "role": role,
+                    "parts": [{"text": h.contenido}]
+                })
 
-            payload = {
-                "systemInstruction": {
-                    "parts": [{"text": system_instruction}]
-                },
-                "contents": contents_payload,
-                "generationConfig": {
-                    "maxOutputTokens": 180,
-                    "temperature": 0.6
+        # Mensaje limpio del estudiante
+        contents_payload.append({
+            "role": "user",
+            "parts": [{"text": req.mensaje}]
+        })
+
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": (
+                    f"{SYSTEM_PROMPT}\n\n"
+                    f"Contexto del alumno: Nombre: {nombre} | Curso: {curso_nombre or 'General'} | Nivel de Riesgo: {nivel_riesgo}.\n"
+                    f"Instrucción: Da una respuesta clara, completa y orientadora de 2 a 4 oraciones. "
+                    f"Responde directamente en español a la consulta del estudiante sin preámbulos innecesarios."
+                )}]
+            },
+            "contents": contents_payload,
+            "generationConfig": {
+                "maxOutputTokens": 1024,
+                "temperature": 0.7,
+                "thinkingConfig": {
+                    "thinkingBudget": 0
                 }
             }
-            resp = requests.post(url, json=payload, timeout=14)
-            if resp.status_code == 200:
-                data = resp.json()
-                text_gemini = data["candidates"][0]["content"]["parts"][0]["text"]
-                return TutorChatResponse(
-                    respuesta=text_gemini,
-                    sugerencias=[
-                        "¿Cómo organizo mis horarios para este curso?",
-                        "Explícame los conceptos clave",
-                        "Dame un plan de estudio personalizado"
-                    ],
-                    curso_contexto=curso_nombre,
-                    nivel_riesgo=nivel_riesgo
-                )
-        except Exception as e:
-            pass  # Fallback automático
+        }
 
-    # Motor de andamiaje pedagógico adaptativo local
+        global _cached_working_model
+
+        # Modelos verificados en orden de prioridad (gemini-flash-latest primero)
+        candidatos = []
+        if _cached_working_model:
+            candidatos.append(_cached_working_model)
+
+        modelos_preferidos = [
+            ("v1beta", "gemini-flash-latest"),
+            ("v1beta", "gemini-3.8-flash"),
+            ("v1beta", "gemini-3-flash"),
+            ("v1", "gemini-flash-latest"),
+            ("v1", "gemini-1.5-flash"),
+        ]
+        for m in modelos_preferidos:
+            if m not in candidatos:
+                candidatos.append(m)
+
+        for api_ver, modelo in candidatos:
+            if "pro" in modelo or "tts" in modelo:
+                continue
+
+            try:
+                url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{modelo}:generateContent?key={gemini_key}"
+                print(f"[TUTOR IA] Consultando {modelo} ({api_ver})...")
+                resp = requests.post(url, json=payload, timeout=12)
+
+                # Si thinkingConfig no es soportado por el endpoint, reintentar sin thinkingConfig
+                if resp.status_code == 400 and "thinkingConfig" in resp.text:
+                    payload_sin_thinking = dict(payload)
+                    payload_sin_thinking["generationConfig"] = {
+                        "maxOutputTokens": 1024,
+                        "temperature": 0.7
+                    }
+                    resp = requests.post(url, json=payload_sin_thinking, timeout=12)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        # Extraer texto ignorando bloques de pensamiento interno (thought)
+                        text_gemini = ""
+                        for part in parts:
+                            if "text" in part and not part.get("thought", False):
+                                text_gemini += part["text"]
+                        if not text_gemini and parts:
+                            text_gemini = parts[-1].get("text", "")
+
+                        if text_gemini.strip():
+                            _cached_working_model = (api_ver, modelo)
+                            print(f"[TUTOR IA OK] ¡Éxito! Respuesta completa recibida de {modelo} ({api_ver}).")
+                            return TutorChatResponse(
+                                respuesta=text_gemini.strip(),
+                                sugerencias=[
+                                    "¿Cómo organizo mis horarios para este curso?",
+                                    "Explícame los conceptos clave",
+                                    "Dame un plan de estudio personalizado"
+                                ],
+                                curso_contexto=curso_nombre,
+                                nivel_riesgo=nivel_riesgo
+                            )
+                else:
+                    print(f"[TUTOR IA ERROR {resp.status_code}] Google respondió para {modelo} ({api_ver}): {resp.text}")
+                    if resp.status_code in (400, 401, 403) and "API_KEY_INVALID" in resp.text:
+                        break
+            except Exception as e:
+                print(f"[TUTOR IA EXCEPCIÓN] Falló la petición a {modelo}: {type(e).__name__} - {e}")
+                break
+    else:
+        print("[TUTOR IA INFO] No hay GEMINI_API_KEY configurada en .env ni entorno.")
+
+    # Motor de andamiaje pedagógico adaptativo local de respaldo
+    print("[TUTOR IA FALLBACK] Usando motor pedagógico local (offline).")
     respuesta_txt, sugerencias = _generar_respuesta_local(
         req.mensaje, nombre, curso_nombre, nivel_riesgo, dias_inact, tareas_pen
     )
