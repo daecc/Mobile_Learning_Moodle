@@ -11,6 +11,7 @@ import 'viewmodels/theme_viewmodel.dart';
 import 'viewmodels/tutor_viewmodel.dart';
 import 'views/screens/courses_screen.dart';
 import 'views/screens/login_screen.dart';
+import 'views/screens/main_navigation_screen.dart';
 
 void main() {
   runApp(const RumboBootstrap());
@@ -48,6 +49,8 @@ class RumboBootstrap extends StatelessWidget {
   }
 }
 
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
 class RumboApp extends StatelessWidget {
   final AuthViewModel authVm;
 
@@ -59,6 +62,7 @@ class RumboApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Rumbo',
+      navigatorObservers: [routeObserver],
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -66,7 +70,7 @@ class RumboApp extends StatelessWidget {
       home: ListenableBuilder(
         listenable: authVm,
         builder: (context, _) => authVm.isLoggedIn
-            ? const CoursesScreen()
+            ? const MainNavigationScreen()
             : const LoginScreen(),
       ),
     );

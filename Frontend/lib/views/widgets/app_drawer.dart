@@ -212,49 +212,6 @@ class AppDrawer extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
                   _CleanDrawerTile(
-                    icon: Icons.book_outlined,
-                    title: 'Mis Asignaturas',
-                    isSelected: currentRoute == 'courses',
-                    badge: '${coursesVm.courses.length}',
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                  _CleanDrawerTile(
-                    icon: Icons.smart_toy_outlined,
-                    title: 'Tutor Inteligente',
-                    isSelected: currentRoute == 'tutor',
-                    badge: 'IA',
-                    badgeColor: AppColors.neutralSoft,
-                    badgeTextColor: AppColors.textPrimaryOf(context),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const TutorScreen()),
-                      );
-                    },
-                  ),
-                  _CleanDrawerTile(
-                    icon: Icons.insights_rounded,
-                    title: 'Control Metacognitivo',
-                    isSelected: currentRoute == 'metacognitive',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MetacognitiveScreen()),
-                      );
-                    },
-                  ),
-                  _CleanDrawerTile(
-                    icon: Icons.emoji_events_outlined,
-                    title: 'Gamificación y Logros',
-                    isSelected: currentRoute == 'gamification',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const GamificationScreen()),
-                      );
-                    },
-                  ),
-                  _CleanDrawerTile(
                     icon: Icons.calendar_today_outlined,
                     title: 'Agenda y Entregas',
                     onTap: () {

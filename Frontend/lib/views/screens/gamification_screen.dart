@@ -7,7 +7,12 @@ import '../../viewmodels/theme_viewmodel.dart';
 /// Pantalla de Gamificación y Logros (Estrategia 5 del Modelo M-learning).
 /// Actualmente estructurada como plantilla vacía para consolidar en la siguiente fase.
 class GamificationScreen extends StatelessWidget {
-  const GamificationScreen({super.key});
+  final bool isTab;
+
+  const GamificationScreen({
+    super.key,
+    this.isTab = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +44,12 @@ class GamificationScreen extends StatelessWidget {
             ),
           ],
         ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: isTab
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
         actions: [
           IconButton(
             onPressed: () => themeVm.toggleTheme(),
@@ -58,7 +65,7 @@ class GamificationScreen extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: EdgeInsets.fromLTRB(24, 32, 24, isTab ? 95 : 32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

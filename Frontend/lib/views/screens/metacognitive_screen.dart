@@ -16,7 +16,12 @@ import 'tutor_screen.dart';
 /// riesgo, la constancia de accesos y las métricas de cada curso para que el
 /// estudiante pueda autorregular su estudio.
 class MetacognitiveScreen extends StatefulWidget {
-  const MetacognitiveScreen({super.key});
+  final bool isTab;
+
+  const MetacognitiveScreen({
+    super.key,
+    this.isTab = false,
+  });
 
   @override
   State<MetacognitiveScreen> createState() => _MetacognitiveScreenState();
@@ -72,10 +77,12 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
             ),
           ],
         ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: widget.isTab
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
         actions: [
           IconButton(
             onPressed: () => themeVm.toggleTheme(),
@@ -135,7 +142,7 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
       onRefresh: _cargar,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: EdgeInsets.fromLTRB(20, 16, 20, widget.isTab ? 95 : 32),
         children: [
           _HeroAvance(
             entregadas: vm.tareasEntregadas,

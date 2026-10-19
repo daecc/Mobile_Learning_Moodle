@@ -24,98 +24,125 @@ class CourseCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.borderOf(context)),
           boxShadow: AppColors.cardShadowOf(context),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fila superior: Créditos / Código y Estado sutil a la derecha
+                // Parte superior e intermedia: Información a la izquierda + Anillo de porcentaje a la derecha
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                      decoration: BoxDecoration(
-                        color: chipBg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${curso.creditos} créditos',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondaryOf(context),
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${curso.creditos} créditos',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondaryOf(context),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            curso.cleanNombreCurso,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimaryOf(context),
+                              height: 1.25,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 14),
                     if (sinEstimacion)
-                      Text(
-                        curso.fechaEstimacion ?? 'Sin estimación',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMutedOf(context),
-                          fontWeight: FontWeight.w500,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          curso.fechaEstimacion ?? 'Sin estimación',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMutedOf(context),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       )
                     else
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            curso.nivelRiesgo == 'BAJO'
-                                ? 'Al día · '
-                                : '${AppColors.labelForLevel(curso.nivelRiesgo)} · ',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
                           Text(
                             '${curso.porcentajeRiesgo}%',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: color,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Círculo exterior suave tipo doble anillo
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: color.withValues(alpha: 0.08),
+                                    border: Border.all(
+                                      color: color.withValues(alpha: 0.35),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                // Arco de progreso circular
+                                SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: CircularProgressIndicator(
+                                    value: (curso.porcentajeRiesgo.clamp(0, 100) / 100.0) == 0
+                                        ? 0.08
+                                        : (curso.porcentajeRiesgo.clamp(0, 100) / 100.0),
+                                    strokeWidth: 3.2,
+                                    backgroundColor: color.withValues(alpha: 0.2),
+                                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                                    strokeCap: StrokeCap.round,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Nombre limpio del curso
-                Text(
-                  curso.cleanNombreCurso,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimaryOf(context),
-                    height: 1.25,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Fila inferior: Docente y chevron
                 Row(
@@ -132,7 +159,7 @@ class CourseCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondaryOf(context),
                         ),

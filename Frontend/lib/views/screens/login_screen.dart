@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import '../../viewmodels/theme_viewmodel.dart';
 import 'courses_screen.dart';
+import 'main_navigation_screen.dart';
 
 /// Pantalla de acceso al Aula Virtual (Moodle LMS).
 class LoginScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (ok) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const CoursesScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,119 +82,233 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
-    final themeVm = context.watch<ThemeViewModel>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Botón de Modo Oscuro en la esquina superior
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton(
-                      onPressed: () => themeVm.toggleTheme(),
-                      icon: Icon(
-                        themeVm.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        color: themeVm.isDarkMode ? Colors.amber : AppColors.textSecondaryOf(context),
-                      ),
-                      tooltip: themeVm.isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
-                    ),
-                  ),
-
-                  // Logo e Identidad Institucional
-                  Center(
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.brandGradient,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.brand.withValues(alpha: 0.35),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
+      body: SingleChildScrollView(
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            // Fondo azul superior con degradado, brillos y bordes curvos
+            Container(
+              width: double.infinity,
+              height: 350,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0D2167),
+                    Color(0xFF173899),
+                    Color(0xFF2457D6),
+                  ],
+                ),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(38),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(38),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Círculo grande difuminado arriba a la derecha
+                    Positioned(
+                      top: -45,
+                      right: -35,
+                      child: Container(
+                        width: 170,
+                        height: 170,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.lightBlueAccent.withValues(alpha: 0.28),
+                              Colors.lightBlueAccent.withValues(alpha: 0.05),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.school_rounded,
-                        color: Colors.white,
-                        size: 40,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Badge Institucional UNMSM
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandSoftOf(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.brand.withValues(alpha: 0.2)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.verified_rounded, size: 14, color: AppColors.brand),
-                          SizedBox(width: 6),
-                          Text(
-                            'UNMSM · FISI · MoodleCloud',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.brand,
-                              letterSpacing: 0.3,
-                            ),
+                    // Círculo grande difuminado a la izquierda
+                    Positioned(
+                      top: 10,
+                      left: -55,
+                      child: Container(
+                        width: 190,
+                        height: 190,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.blueAccent.withValues(alpha: 0.25),
+                              Colors.blueAccent.withValues(alpha: 0.02),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    // Brillo suave abajo a la derecha
+                    Positioned(
+                      bottom: -30,
+                      right: -20,
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              const Color(0xFF60A5FA).withValues(alpha: 0.30),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Resplandor radial central detrás del globo/birrete
+                    Positioned(
+                      top: 25,
+                      child: Container(
+                        width: 210,
+                        height: 210,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withValues(alpha: 0.28),
+                              const Color(0xFF60A5FA).withValues(alpha: 0.15),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.55, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Esferas / partículas decorativas (bokeh)
+                    Positioned(
+                      top: 120,
+                      left: 55,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.cyanAccent.withValues(alpha: 0.35),
+                              Colors.blue.withValues(alpha: 0.08),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 68,
+                      right: 95,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.lightBlueAccent.withValues(alpha: 0.35),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 86,
+                      right: 68,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.lightBlueAccent.withValues(alpha: 0.4),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 95,
+                      left: 78,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blueAccent.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                  Text(
-                    'Rumbo',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimaryOf(context),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Analítica Predictiva y Prevención de Riesgo Académico en Moodle',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondaryOf(context),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+            // Contenido principal
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Logo e Identidad Institucional (Animación Lottie)
+                      Center(
+                        child: SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: Lottie.asset(
+                            'assets/animations/login_amimation.json',
+                            fit: BoxFit.contain,
+                            repeat: true,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 76,
+                                height: 76,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  gradient: AppColors.brandGradient,
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                child: const Icon(
+                                  Icons.school_rounded,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
 
-                  // Tarjeta del Formulario
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceOf(context),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderOf(context)),
-                      boxShadow: AppColors.cardShadowOf(context),
-                    ),
+                      const Text(
+                        'Rumbo',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Tarjeta del Formulario
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceOf(context),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppColors.borderOf(context)),
+                          boxShadow: AppColors.cardShadowOf(context),
+                        ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -291,11 +406,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => _seleccionarCuenta('DEMO', 'demo123'),
                       ),
                     ],
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

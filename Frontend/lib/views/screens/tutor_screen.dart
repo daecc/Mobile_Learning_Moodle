@@ -13,8 +13,14 @@ import '../../viewmodels/tutor_viewmodel.dart';
 class TutorScreen extends StatefulWidget {
   final String? initialCourseId;
   final String? initialCourseName;
+  final bool isTab;
 
-  const TutorScreen({super.key, this.initialCourseId, this.initialCourseName});
+  const TutorScreen({
+    super.key,
+    this.initialCourseId,
+    this.initialCourseName,
+    this.isTab = false,
+  });
 
   @override
   State<TutorScreen> createState() => _TutorScreenState();
@@ -118,10 +124,12 @@ class _TutorScreenState extends State<TutorScreen> {
             ),
           ],
         ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: widget.isTab
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryOf(context)),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
         actions: [
           IconButton(
             onPressed: () => tutorVm.reiniciarChat(),
@@ -179,6 +187,7 @@ class _TutorScreenState extends State<TutorScreen> {
             _InputBar(
               controller: _textController,
               isTyping: tutorVm.isTyping,
+              bottomPadding: widget.isTab ? 84.0 : 14.0,
               onSend: () => _enviar(_textController.text),
             ),
           ],
@@ -428,17 +437,19 @@ class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final bool isTyping;
   final VoidCallback onSend;
+  final double bottomPadding;
 
   const _InputBar({
     required this.controller,
     required this.isTyping,
     required this.onSend,
+    this.bottomPadding = 14.0,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+      padding: EdgeInsets.fromLTRB(14, 8, 14, bottomPadding),
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         border: Border(top: BorderSide(color: AppColors.borderOf(context))),
