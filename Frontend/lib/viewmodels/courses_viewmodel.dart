@@ -56,7 +56,7 @@ class CoursesViewModel extends ChangeNotifier {
       });
     } else {
       list.sort(
-        (a, b) => a.nombreCurso.toLowerCase().compareTo(b.nombreCurso.toLowerCase()),
+        (a, b) => a.cleanNombreCurso.toLowerCase().compareTo(b.cleanNombreCurso.toLowerCase()),
       );
     }
     return list;
@@ -70,14 +70,16 @@ class CoursesViewModel extends ChangeNotifier {
     return 'Actualizado hoy, $hh:$mm';
   }
 
-  Future<void> loadCourses({String? studentId}) async {
+  Future<void> loadCourses({String? studentId, bool refresh = false}) async {
     _status = CoursesStatus.loading;
     _error = null;
     notifyListeners();
 
     try {
-      final response =
-          await apiService.getStudentCourses(studentId ?? _studentId);
+      final response = await apiService.getStudentCourses(
+        studentId ?? _studentId,
+        refresh: refresh,
+      );
       _studentId = response.idEstudiante.isNotEmpty
           ? response.idEstudiante
           : _studentId;

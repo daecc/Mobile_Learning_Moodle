@@ -32,6 +32,7 @@ class _FactorsScreenState extends State<FactorsScreen> {
       context.read<RiesgoViewModel>().loadDetail(
         widget.courseId,
         studentId: authStudent?.idEstudiante ?? 'EST-0001',
+        refresh: false,
       );
     });
   }
@@ -63,19 +64,32 @@ class _FactorsScreenState extends State<FactorsScreen> {
               onPressed: () => themeVm.toggleTheme(),
             ),
           ),
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondaryOf(context)),
+            tooltip: 'Actualizar factores',
+            onPressed: () {
+              final authStudent = context.read<AuthViewModel>().student;
+              context.read<RiesgoViewModel>().loadDetail(
+                    widget.courseId,
+                    studentId: authStudent?.idEstudiante ?? 'EST-0001',
+                    refresh: true,
+                  );
+            },
+          ),
         ],
       ),
       body: detail == null
           ? const Center(child: CircularProgressIndicator())
-          : _FactorsBody(detail: detail),
+          : _FactorsBody(detail: detail, courseId: widget.courseId),
     );
   }
 }
 
 class _FactorsBody extends StatelessWidget {
   final RiskDetailResponse detail;
+  final String courseId;
 
-  const _FactorsBody({required this.detail});
+  const _FactorsBody({required this.detail, required this.courseId});
 
   @override
   Widget build(BuildContext context) {
@@ -85,9 +99,20 @@ class _FactorsBody extends StatelessWidget {
       return _SinFactores(detail: detail);
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      child: Column(
+    return RefreshIndicator(
+      color: AppColors.brand,
+      onRefresh: () async {
+        final authStudent = context.read<AuthViewModel>().student;
+        await context.read<RiesgoViewModel>().loadDetail(
+              courseId,
+              studentId: authStudent?.idEstudiante ?? 'EST-0001',
+              refresh: true,
+            );
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -181,8 +206,9 @@ class _FactorsBody extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _chartFor(RiskFactor factor) {
     switch (factor.chartType) {

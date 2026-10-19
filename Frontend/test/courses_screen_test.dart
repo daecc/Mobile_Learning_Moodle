@@ -11,7 +11,8 @@ import 'package:rumbo_app/views/screens/courses_screen.dart';
 
 class FakeApiService extends ApiService {
   @override
-  Future<StudentCoursesResponse> getStudentCourses(String studentId) async {
+  Future<StudentCoursesResponse> getStudentCourses(
+      String studentId, {bool refresh = false}) async {
     return getDemoCourses(studentId);
   }
 }
@@ -47,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header
-    expect(find.text('Hola, Valeria 👋'), findsOneWidget);
+    expect(find.text('Hola, Valeria'), findsOneWidget);
     expect(find.text('Mis Cursos'), findsOneWidget);
     expect(find.text('VQ'), findsOneWidget);
 
@@ -70,16 +71,16 @@ void main() {
 
     // Verify courses
     expect(find.text('Patrones de Diseño de Software'), findsOneWidget);
-    expect(find.text('85'), findsOneWidget);
+    expect(find.text('85%'), findsOneWidget);
 
     expect(find.text('Ingeniería de Requisitos'), findsOneWidget);
-    expect(find.text('52'), findsOneWidget);
+    expect(find.text('52%'), findsOneWidget);
 
     expect(find.text('Arquitectura de Software'), findsOneWidget);
-    expect(find.text('41'), findsOneWidget);
+    expect(find.text('41%'), findsOneWidget);
 
     expect(find.text('Base de Datos II'), findsOneWidget);
-    expect(find.text('18'), findsOneWidget);
+    expect(find.text('18%'), findsOneWidget);
 
     expect(find.text('Gestión de Proyectos de Software'), findsOneWidget);
     expect(find.text('Desde el 19 de oct.'), findsOneWidget);

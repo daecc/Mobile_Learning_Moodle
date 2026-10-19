@@ -6,6 +6,7 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 from app.database import get_db_connection
@@ -30,6 +31,104 @@ BROWSER_HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
 }
+
+ACCENTS_MAP = {
+    'CONSTRUCCION': 'Construcción',
+    'Construccion': 'Construcción',
+    'MOVIL': 'Móvil',
+    'Movil': 'Móvil',
+    'GARANTIA': 'Garantía',
+    'Garantia': 'Garantía',
+    'GESTION': 'Gestión',
+    'Gestion': 'Gestión',
+    'ANALITICA': 'Analítica',
+    'Analitica': 'Analítica',
+    'DISENO': 'Diseño',
+    'Diseno': 'Diseño',
+    'INGENIERIA': 'Ingeniería',
+    'Ingenieria': 'Ingeniería',
+    'METODOLOGIA': 'Metodología',
+    'Metodologia': 'Metodología',
+    'PROGRAMACION': 'Programación',
+    'Programacion': 'Programación',
+    'COMPUTACION': 'Computación',
+    'Computacion': 'Computación',
+    'ESTADISTICA': 'Estadística',
+    'Estadistica': 'Estadística',
+    'ADMINISTRACION': 'Administración',
+    'Administracion': 'Administración',
+    'FISICA': 'Física',
+    'Fisica': 'Física',
+    'QUIMICA': 'Química',
+    'Quimica': 'Química',
+    'LOGICA': 'Lógica',
+    'Logica': 'Lógica',
+    'ETICA': 'Ética',
+    'Etica': 'Ética',
+    'PRACTICA': 'Práctica',
+    'Practica': 'Práctica',
+}
+
+
+def clean_course_title(raw: str) -> str:
+    """
+    Transforma nombres crudos de Moodle (ej. 'Curso202W0907-TALLER_DE_CONSTRUCCION_DE_SOFTWARE_MOVIL-2018-1_26.2')
+    en títulos legibles para estudiantes (ej. 'Taller de Construcción de Software Móvil').
+    """
+    if not raw or not raw.strip():
+        return raw
+    name = raw.strip()
+
+    # 1. Prefijos con dos puntos
+    if ':' in name:
+        parts = name.split(':')
+        if len(parts) > 1 and parts[1].strip():
+            name = ':'.join(parts[1:]).strip()
+
+    # 2. Eliminar prefijo 'Curso' con su código
+    name = re.sub(r'^Curso[-_]?[A-Za-z0-9]+[-_:]\s*', '', name, flags=re.IGNORECASE)
+
+    # 3. Eliminar códigos automáticos al inicio sin 'Curso'
+    name = re.sub(r'^(?:[A-Za-z0-9]{2,10}[-_])?\d+[A-Za-z0-9]*[-_:]\s*', '', name)
+    name = re.sub(r'^(?:CUR|MAT|INF|SIS|FIS|BIO|QUI|CS)[-_]\d+[-_:]\s*', '', name, flags=re.IGNORECASE)
+
+    # 4. Eliminar sufijos de ciclo o periodo
+    name = re.sub(r'[-_]\d{4}[-_]\d.*$', '', name)
+    name = re.sub(r'[-_]\d+(\.\d+)?$', '', name)
+
+    # 5. Normalizar guiones bajos y espacios
+    name = name.replace('_', ' ')
+    name = re.sub(r'\s+', ' ', name).strip()
+
+    # 6. Title Case humano y corrección de tildes
+    if len(name) > 2 and name == name.upper():
+        words = name.split(' ')
+        titled_words = []
+        for w in words:
+            if not w:
+                continue
+            lower = w.lower()
+            if lower in ['de', 'del', 'la', 'las', 'el', 'los', 'en', 'y', 'para', 'con', 'a', 'o', 'por']:
+                titled_words.append(lower)
+            elif w.upper() in ACCENTS_MAP:
+                titled_words.append(ACCENTS_MAP[w.upper()])
+            elif re.match(r'^[A-Z]\d+$', w):
+                titled_words.append(w)
+            elif w == '-':
+                titled_words.append('-')
+            else:
+                titled_words.append(w[0].upper() + lower[1:])
+
+        if titled_words and titled_words[0]:
+            first = titled_words[0]
+            titled_words[0] = first[0].upper() + first[1:]
+        name = ' '.join(titled_words)
+    else:
+        words = name.split(' ')
+        restored = [ACCENTS_MAP.get(w, w) for w in words]
+        name = ' '.join(restored)
+
+    return name if name else raw
 
 
 class MoodleRestClient:
@@ -155,50 +254,26 @@ class MoodleService:
 
     def __init__(self):
         self.client = MoodleRestClient()
+        self._last_sync_by_student: Dict[str, float] = {}
 
-    def sync_and_predict(self, username: str, password: str) -> Dict[str, Any]:
+    def _process_courses_and_save(
+        self,
+        moodle_token: str,
+        userid: int,
+        id_estudiante: str,
+        clean_user: str,
+        fullname: str,
+        user_email: str,
+        courses: List[Dict[str, Any]],
+        is_live: bool
+    ) -> int:
         """
-        1. Autentica al estudiante con la API REST de MoodleCloud.
-        2. Obtiene su perfil institucional y los cursos matriculados.
-        3. Para cada curso, extrae métricas de actividad (inactividad, tareas, calificaciones).
-        4. Ejecuta el modelo de Regresión Logística (Scikit-Learn) para predecir el riesgo académico.
-        5. Persiste el estado completo en la base de datos local SQLite.
+        Extrae métricas reales de Moodle, calcula las 7 variables oficiales,
+        ejecuta el modelo ML de Regresión Logística y persiste el estado en SQLite.
         """
-        clean_user = username.strip()
-
-        # 1. Autenticación con MoodleCloud
-        try:
-            moodle_token = self.client.authenticate(clean_user, password)
-            site_info = self.client.get_site_info(moodle_token)
-            userid = site_info.get("userid")
-            fullname = site_info.get("fullname", clean_user)
-            user_email = site_info.get("userpictureurl", "")  # fallback
-            user_email = f"{clean_user.lower()}@unmsm.edu.pe"
-
-            # 2. Cursos matriculados en Moodle
-            courses = self.client.get_enrolled_courses(moodle_token, userid)
-            is_live = True
-            logger.info(f"Autenticación exitosa en MoodleCloud para {fullname} (ID: {userid}) con {len(courses)} cursos.")
-
-        except ValueError as val_err:
-            # Error de credenciales inválidas (usuario o contraseña equivocada)
-            raise val_err
-
-        except Exception as conn_err:
-            logger.warning(f"No se pudo contactar MoodleCloud ({conn_err}). Usando respaldo local.")
-            # Fallback en caso de corte temporal de conexión
-            fullname = "Guillermo Paucar" if "guillermo" in clean_user.lower() else "Joseph Escalante"
-            user_email = f"{clean_user.lower()}@unmsm.edu.pe"
-            moodle_token = f"token_fallback_{clean_user.lower()}"
-            userid = 5 if "guillermo" in clean_user.lower() else 6
-            is_live = False
-            courses = self._get_default_courses()
-
-        # 3. Guardar en SQLite y ejecutar predicciones de ML
         conn = get_db_connection()
         try:
             cur = conn.cursor()
-            id_estudiante = f"EST-{clean_user.upper()}"
 
             # Guardar / actualizar estudiante
             cur.execute("""
@@ -216,90 +291,169 @@ class MoodleService:
             cur.execute("DELETE FROM metricas WHERE id_estudiante = ?", (id_estudiante,))
             cur.execute("DELETE FROM cursos WHERE id_estudiante = ?", (id_estudiante,))
 
-            # Procesar cada curso
-            total_courses_count = len(courses)
             now_ts = int(time.time())
+
+            # Pre-cargar asignaciones y calificaciones en paralelo para máximo rendimiento
+            assigns_by_course: Dict[int, List[Dict[str, Any]]] = {}
+            grades_by_course: Dict[int, List[Dict[str, Any]]] = {}
+            subs_by_assign: Dict[int, Dict[str, Any]] = {}
+
+            if is_live:
+                try:
+                    with ThreadPoolExecutor(max_workers=6) as executor:
+                        f_assigns = executor.submit(self.client.call_function, moodle_token, "mod_assign_get_assignments")
+                        grades_futures = {c.get("id"): executor.submit(self.client.get_user_course_grades, moodle_token, c.get("id"), userid) for c in courses}
+
+                        try:
+                            assigns_data = f_assigns.result()
+                            for c_assign in assigns_data.get("courses", []):
+                                assigns_by_course[c_assign.get("id")] = c_assign.get("assignments", [])
+                        except Exception as ae:
+                            logger.debug(f"No se pudieron obtener tareas de Moodle: {ae}")
+
+                        # Obtener estados de entrega de cada asignación en paralelo
+                        all_assign_ids = [a.get("id") for assigns in assigns_by_course.values() for a in assigns if a.get("id")]
+                        subs_futures = {aid: executor.submit(self.client.call_function, moodle_token, "mod_assign_get_submission_status", assignid=aid) for aid in all_assign_ids}
+
+                        for cid, f in grades_futures.items():
+                            try:
+                                grades_by_course[cid] = f.result()
+                            except Exception:
+                                grades_by_course[cid] = []
+
+                        for aid, f in subs_futures.items():
+                            try:
+                                subs_by_assign[aid] = f.result()
+                            except Exception:
+                                subs_by_assign[aid] = {}
+                except Exception as e:
+                    logger.debug(f"Error en llamadas paralelas Moodle: {e}")
 
             for c in courses:
                 cid = c.get("id")
-                c_name = c.get("fullname", f"Curso {cid}")
+                raw_c_name = c.get("fullname", f"Curso {cid}")
+                c_name = clean_course_title(raw_c_name)
                 c_short = c.get("shortname", f"CUR-{cid}")
                 c_idnumber = c.get("idnumber") or c_short
                 internal_id = f"CUR-{cid}" if not c_idnumber else f"CUR-{c_idnumber}"
 
-                # Métricas reales de Moodle
-                dias_inact = 2
+                # Métricas base
+                dias_inact = 0
                 promedio = 14.5
-                total_tasks = 4
-                pending_tasks = 1
+                total_tasks = 0
+                pending_tasks = 0
+                tendencia = 0.0
+                margen_entrega = 24.0
+                asist_formal = 0.85
+                grades_vals = []
 
                 if is_live:
-                    # Inactividad desde lastaccess
+                    # 1. Inactividad desde lastaccess oficial del curso
                     lastaccess = c.get("lastaccess")
                     if lastaccess and isinstance(lastaccess, (int, float)) and lastaccess > 0:
                         diff_seconds = max(0, now_ts - int(lastaccess))
-                        dias_inact = max(1, diff_seconds // 86400)
+                        dias_inact = max(0, diff_seconds // 86400)
                     else:
-                        # Si no ha entrado recientemente o es None
-                        dias_inact = 3 if "MOVIL" in c_name.upper() else 4
+                        dias_inact = 0
 
-                    # Calificaciones y tareas desde Moodle REST
-                    grade_items = self.client.get_user_course_grades(moodle_token, cid, userid)
-                    contents = self.client.get_course_contents(moodle_token, cid)
-
-                    # Contabilizar módulos de tareas y actividades
-                    task_modules = []
-                    for section in contents:
-                        if isinstance(section, dict):
-                            for mod in section.get("modules", []):
-                                if mod.get("modname") in ["assign", "quiz", "workshop"]:
-                                    task_modules.append(mod)
-
-                    if task_modules:
-                        total_tasks = max(1, len(task_modules))
-                    elif len(grade_items) > 1:
-                        total_tasks = max(1, len(grade_items) - 1)
-
-                    # Buscar notas registradas
-                    grades_vals = []
+                    # 2. Calificaciones del Gradebook pre-cargado
+                    grade_items = grades_by_course.get(cid, [])
+                    asist_formal_found = None
                     for gi in grade_items:
+                        item_name = (gi.get("itemname") or "").lower()
                         raw = gi.get("graderaw")
                         gmax = gi.get("grademax") or 100
+
                         if raw is not None:
                             try:
                                 r_val = float(raw)
                                 m_val = float(gmax)
                                 if m_val > 0:
-                                    vigesimal = (r_val / m_val) * 20.0
-                                    grades_vals.append(vigesimal)
+                                    if "asist" in item_name or "attend" in item_name:
+                                        asist_formal_found = min(1.0, max(0.0, r_val / m_val))
+                                    else:
+                                        grades_vals.append((r_val / m_val) * 20.0)
                             except (ValueError, TypeError):
                                 pass
 
                     if grades_vals:
                         promedio = round(float(np.mean(grades_vals)), 1)
-                    else:
-                        # Si aún no han publicado notas, estimar según actividad
-                        if dias_inact <= 2:
-                            promedio = 15.5
-                            pending_tasks = 1
+                        if len(grades_vals) >= 2:
+                            x_idx = np.arange(len(grades_vals))
+                            slope, _ = np.polyfit(x_idx, grades_vals, 1)
+                            tendencia = round(float(slope), 3)
                         else:
-                            promedio = 13.0
-                            pending_tasks = max(1, total_tasks // 2)
+                            tendencia = 0.0
+                    else:
+                        promedio = 14.0 if dias_inact <= 3 else 11.5
+                        tendencia = 0.0
+
+                    if asist_formal_found is not None:
+                        asist_formal = round(asist_formal_found, 3)
+                    else:
+                        asist_formal = 0.90 if dias_inact <= 3 else 0.70
+
+                    # 3. Tareas y Quizzes oficiales de Moodle (cero datos inventados)
+                    course_assigns = assigns_by_course.get(cid, [])
+                    quiz_modules = [gi for gi in grade_items if gi.get("itemmodule") == "quiz" or (gi.get("itemtype") == "mod" and "cuest" in (gi.get("itemname") or "").lower())]
+
+                    total_tasks = len(course_assigns) + len(quiz_modules)
+                    margins_list = []
+
+                    if total_tasks == 0:
+                        pending_tasks = 0
+                        margen_entrega = 24.0
+                    else:
+                        for a in course_assigns:
+                            aid = a.get("id")
+                            duedate = a.get("duedate", 0)
+                            sub = subs_by_assign.get(aid, {})
+                            lastattempt = sub.get("lastattempt", {})
+                            submission = lastattempt.get("submission", {})
+                            sub_status = submission.get("status")
+                            timemodified = submission.get("timemodified", 0)
+
+                            if sub_status == "submitted":
+                                # Tarea entregada formalmente
+                                if duedate > 0 and timemodified > 0:
+                                    m_h = (duedate - timemodified) / 3600.0
+                                    margins_list.append(m_h)
+                                else:
+                                    margins_list.append(36.0)
+                            else:
+                                # Tarea aún no entregada
+                                pending_tasks += 1
+                                if duedate > 0 and now_ts > duedate:
+                                    margins_list.append(-48.0)  # Penalización por tarea vencida sin entregar
+                                else:
+                                    # Tarea en plazo pero NO entregada todavía:
+                                    # No otorga bono de entrega anticipada ficticio
+                                    pass
+
+                        if margins_list:
+                            margen_entrega = round(float(min(margins_list)), 1)
+                        else:
+                            # Neutro (0.0) si tiene tareas pendientes en curso pero ninguna entregada
+                            margen_entrega = 0.0 if pending_tasks > 0 else 24.0
 
                 else:
-                    # Datos fieles del ciclo académico UNMSM
-                    if "MOVIL" in c_name.upper():
-                        dias_inact = 1
-                        promedio = 15.5
-                        total_tasks = 4
-                        pending_tasks = 1
-                    else:
-                        dias_inact = 3
-                        promedio = 14.0
-                        total_tasks = 3
-                        pending_tasks = 1
+                    # Fallback local determinista para modo demo o sin red
+                    base_hash = abs(hash(internal_id)) % 7
+                    promedio = 15.0 if base_hash in [0, 1, 2] else (12.5 if base_hash in [3, 4] else 9.5)
+                    dias_inact = 0 if base_hash in [0, 1] else (2 if base_hash in [2, 3] else 4)
+                    pending_tasks = 0 if dias_inact <= 1 else (1 if dias_inact <= 3 else 2)
+                    total_tasks = 2 if pending_tasks > 0 else 1
+                    tendencia = 0.4 if promedio >= 14 else (-0.6 if promedio < 11 else 0.0)
+                    margen_entrega = -48.0 if pending_tasks > 1 else (12.0 if pending_tasks == 1 else 48.0)
+                    asist_formal = 0.95 if dias_inact <= 2 else 0.75
+                    grades_vals = [promedio - 0.5, promedio + 0.3, promedio]
 
-                # 4. Insertar Curso en SQLite
+                # 4. Asistencia Virtual por frecuencia semanal
+                accesos_semana = max(0, min(7, 7 - dias_inact))
+                asist_virtual = round(min(1.0, max(0.1, accesos_semana / 3.0)), 3)
+                tasa_pend = (pending_tasks / total_tasks) if total_tasks > 0 else 0.0
+
+                # 5. Insertar Curso
                 cur.execute("""
                 INSERT INTO cursos (id_curso, moodle_id, nombre, codigo, docente, creditos, id_estudiante, fecha_estimacion)
                 VALUES (?, ?, ?, ?, 'Docente Asignado FISI', 4, ?, 'Estimación activa')
@@ -308,31 +462,29 @@ class MoodleService:
                     codigo = excluded.codigo;
                 """, (internal_id, cid, c_name, c_short, id_estudiante))
 
-                # 5. Insertar Métricas en SQLite
+                # 6. Insertar Métricas
                 cur.execute("""
                 INSERT INTO metricas (
                     id_curso, id_estudiante, dias_inactividad, tareas_totales,
                     tareas_pendientes, promedio_quizzes, accesos_esta_semana,
-                    promedio_historico, fecha_corte
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE('now'));
-                """, (internal_id, id_estudiante, dias_inact, total_tasks, pending_tasks, promedio, 4, promedio))
+                    promedio_historico, tendencia_calificaciones, margen_entrega_horas,
+                    asistencia_formal, asistencia_virtual, fecha_corte
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'));
+                """, (
+                    internal_id, id_estudiante, dias_inact, total_tasks,
+                    pending_tasks, promedio, accesos_semana, promedio,
+                    tendencia, margen_entrega, asist_formal, asist_virtual
+                ))
 
-                # 6. Ejecutar Machine Learning (Regresión Logística Predictor)
-                tasa_pend = (pending_tasks / total_tasks) if total_tasks > 0 else 0.0
-                tendencia = 0.3 if promedio >= 14 else -0.3
-                tasa_acierto = min(1.0, max(0.2, promedio / 20.0))
-
+                # 7. Ejecutar ML Predictor (Regresión Logística con 7 variables)
                 vector_dict = {
-                    "carga_academica_actual": float(total_courses_count),
-                    "calificacion_historica_promedio": promedio,
-                    "tendencia_calificaciones": tendencia,
-                    "tasa_acierto_primer_intento": tasa_acierto,
-                    "duracion_intento_minutos": 15.0,
-                    "indice_friccion_cognitiva": 1.5 if dias_inact <= 2 else 2.5,
-                    "dias_inactividad_consecutivos": float(dias_inact),
-                    "tasa_entregas_tardias": tasa_pend,
-                    "nivel_interaccion_social": 0.7 if dias_inact <= 2 else 0.4,
-                    "tasa_visualizacion_materiales": 0.85 if dias_inact <= 2 else 0.5
+                    "promedio_calificaciones": float(promedio),
+                    "tendencia_calificaciones": float(tendencia),
+                    "dias_inactividad": float(dias_inact),
+                    "tasa_tareas_pendientes": float(tasa_pend),
+                    "margen_entrega_horas": float(margen_entrega),
+                    "asistencia_formal_sesiones": float(asist_formal),
+                    "asistencia_virtual_regularidad": float(asist_virtual)
                 }
 
                 if model is not None and scaler is not None:
@@ -344,15 +496,27 @@ class MoodleService:
 
                 nivel, alerta_t, alerta_m, accion_rec = calcular_nivel_riesgo(prob_riesgo)
 
-                # Factores XAI (Explicabilidad según principios Nielsen H6)
+                # 8. Factores explicativos XAI (Nielsen H6)
                 chart_days = [1 if i >= (14 - dias_inact) else 0 for i in range(14)]
-                chart_tasks = [1] * (total_tasks - pending_tasks) + [0] * pending_tasks
-                quiz_trend_vals = [promedio - 0.5, promedio + 0.3, promedio] if promedio >= 11 else [promedio + 1.5, promedio, promedio - 1.0]
+                if total_tasks > 0:
+                    chart_tasks = [1] * max(0, total_tasks - pending_tasks) + [0] * pending_tasks
+                else:
+                    chart_tasks = [1]
+
+                if grades_vals and len(grades_vals) >= 2:
+                    quiz_trend_vals = [round(float(g), 1) for g in grades_vals[-4:]]
+                else:
+                    quiz_trend_vals = [round(promedio - 0.5, 1), round(promedio + (tendencia * 0.5), 1), round(promedio, 1)]
+
+                subtitulo_tareas = "No hay tareas programadas en Moodle." if total_tasks == 0 else (
+                    "Todas las tareas han sido entregadas en Moodle." if pending_tasks == 0 else
+                    f"{pending_tasks} de {total_tasks} tarea{'s' if total_tasks != 1 else ''} pendiente{'s' if pending_tasks != 1 else ''} en Moodle."
+                )
 
                 factores_list = [
                     {
                         "clave": "inactividad",
-                        "titulo": f"Último acceso al curso: hace {dias_inact} día{'s' if dias_inact != 1 else ''}",
+                        "titulo": f"Último acceso al curso: {'hoy' if dias_inact == 0 else f'hace {dias_inact} día' + ('s' if dias_inact != 1 else '')}",
                         "impacto": "aumenta" if dias_inact > 3 else "reduce",
                         "influencia": 3 if dias_inact > 3 else 1,
                         "subtitulo": f"Registro de actividad en MoodleCloud. Frecuencia estimada: {14 - dias_inact}/14 días.",
@@ -373,7 +537,7 @@ class MoodleService:
                         "titulo": f"Tareas pendientes: {pending_tasks} de {total_tasks}",
                         "impacto": "aumenta" if pending_tasks > 0 else "reduce",
                         "influencia": 2,
-                        "subtitulo": "Módulos y tareas asignadas en Moodle.",
+                        "subtitulo": subtitulo_tareas,
                         "chartType": "tasks_timeline",
                         "chartValues": chart_tasks
                     },
@@ -388,7 +552,6 @@ class MoodleService:
                     }
                 ]
 
-                # 7. Insertar Predicción en SQLite
                 cur.execute("""
                 INSERT INTO predicciones (
                     id_curso, id_estudiante, probabilidad, porcentaje, nivel_riesgo,
@@ -406,6 +569,115 @@ class MoodleService:
 
         finally:
             conn.close()
+
+        return len(courses)
+
+    def sync_student_by_id(self, id_estudiante: str, force: bool = False) -> bool:
+        """
+        Sincroniza en tiempo real los datos del estudiante con MoodleCloud
+        usando su token de sesión guardado en SQLite.
+        Debounce de 4 segundos para evitar saturar peticiones repetidas.
+        """
+        now = time.time()
+        last = self._last_sync_by_student.get(id_estudiante, 0)
+        if not force and (now - last < 4.0):
+            logger.debug(f"Sync omitido para {id_estudiante}: sincronizado hace {now - last:.1f}s.")
+            return True
+
+        conn = get_db_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM estudiantes WHERE id_estudiante = ?;", (id_estudiante,))
+            row = cur.fetchone()
+        finally:
+            conn.close()
+
+        if not row:
+            return False
+
+        token = row["token_moodle"]
+        if not token or token.startswith("token_demo_") or token.startswith("token_fallback_"):
+            return False
+
+        userid = row["moodle_userid"]
+        clean_user = row["username"]
+        fullname = row["nombre"]
+        user_email = row["correo"]
+
+        try:
+            if not userid or userid <= 0:
+                site_info = self.client.get_site_info(token)
+                userid = site_info.get("userid", 0)
+
+            courses = self.client.get_enrolled_courses(token, userid)
+            if not courses:
+                courses = self._get_default_courses()
+
+            self._process_courses_and_save(
+                moodle_token=token,
+                userid=userid,
+                id_estudiante=id_estudiante,
+                clean_user=clean_user,
+                fullname=fullname,
+                user_email=user_email,
+                courses=courses,
+                is_live=True
+            )
+            self._last_sync_by_student[id_estudiante] = time.time()
+            logger.info(f"Sincronización en vivo con MoodleCloud completada exitosamente para {id_estudiante}.")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Error al sincronizar en vivo con MoodleCloud para {id_estudiante}: {e}")
+            return False
+
+    def sync_and_predict(self, username: str, password: str) -> Dict[str, Any]:
+        """
+        1. Autentica al estudiante con la API REST de MoodleCloud.
+        2. Obtiene su perfil institucional y los cursos matriculados.
+        3. Para cada curso, extrae métricas de actividad (inactividad, tareas, calificaciones).
+        4. Ejecuta el modelo de Regresión Logística (Scikit-Learn) para predecir el riesgo académico.
+        5. Persiste el estado completo en la base de datos local SQLite.
+        """
+        clean_user = username.strip()
+
+        # 1. Autenticación con MoodleCloud
+        try:
+            moodle_token = self.client.authenticate(clean_user, password)
+            site_info = self.client.get_site_info(moodle_token)
+            userid = site_info.get("userid")
+            fullname = site_info.get("fullname", clean_user)
+            user_email = f"{clean_user.lower()}@unmsm.edu.pe"
+
+            # 2. Cursos matriculados en Moodle
+            courses = self.client.get_enrolled_courses(moodle_token, userid)
+            is_live = True
+            logger.info(f"Autenticación exitosa en MoodleCloud para {fullname} (ID: {userid}) con {len(courses)} cursos.")
+
+        except ValueError as val_err:
+            raise val_err
+
+        except Exception as conn_err:
+            logger.warning(f"No se pudo contactar MoodleCloud ({conn_err}). Usando respaldo local.")
+            fullname = "Guillermo Paucar" if "guillermo" in clean_user.lower() else "Joseph Escalante"
+            user_email = f"{clean_user.lower()}@unmsm.edu.pe"
+            moodle_token = f"token_fallback_{clean_user.lower()}"
+            userid = 5 if "guillermo" in clean_user.lower() else 6
+            is_live = False
+            courses = self._get_default_courses()
+
+        id_estudiante = f"EST-{clean_user.upper()}"
+        total_courses_count = self._process_courses_and_save(
+            moodle_token=moodle_token,
+            userid=userid,
+            id_estudiante=id_estudiante,
+            clean_user=clean_user,
+            fullname=fullname,
+            user_email=user_email,
+            courses=courses,
+            is_live=is_live
+        )
+        self._last_sync_by_student[id_estudiante] = time.time()
 
         return {
             "token": f"token_moodle_{clean_user.lower()}",
@@ -428,19 +700,19 @@ class MoodleService:
                 "id": 9,
                 "shortname": "Software_Mobile",
                 "idnumber": "202W0907",
-                "fullname": "Curso202W0907-TALLER_DE_CONSTRUCCION_DE_SOFTWARE_MOVIL-2018-1_26.2"
+                "fullname": "Taller de Construcción de Software Móvil"
             },
             {
                 "id": 10,
                 "shortname": "GS-G1-2026",
                 "idnumber": "202W0902",
-                "fullname": "GARANTIA DE SOFTWARE - G1"
+                "fullname": "Garantía de Software - G1"
             },
             {
                 "id": 11,
                 "shortname": "GMS-G1-2026",
                 "idnumber": "202W0904",
-                "fullname": "GESTION DE MANTENIMIENTO DEL SOFTWARE - G1"
+                "fullname": "Gestión de Mantenimiento del Software - G1"
             }
         ]
 

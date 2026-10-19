@@ -12,7 +12,7 @@ import 'package:rumbo_app/views/screens/risk_screen.dart';
 class FakeRiskApiService extends ApiService {
   @override
   Future<RiskDetailResponse> getCourseRiskDetail(
-      String studentId, String courseId) async {
+      String studentId, String courseId, {bool refresh = false}) async {
     return getDemoRiskDetail(studentId, courseId);
   }
 }

@@ -14,7 +14,8 @@ import 'package:rumbo_app/views/widgets/factor_charts/weekly_logins_chart.dart';
 
 class FakeFactorsApiService extends ApiService {
   @override
-  Future<RiskDetailResponse> getCourseRiskDetail(String studentId, String courseId) async {
+  Future<RiskDetailResponse> getCourseRiskDetail(
+      String studentId, String courseId, {bool refresh = false}) async {
     return getDemoRiskDetail(studentId, courseId);
   }
 }

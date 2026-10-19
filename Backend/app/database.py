@@ -59,11 +59,28 @@ def init_db():
         promedio_quizzes REAL DEFAULT 0.0,
         accesos_esta_semana INTEGER DEFAULT 1,
         promedio_historico REAL DEFAULT 12.0,
+        tendencia_calificaciones REAL DEFAULT 0.0,
+        margen_entrega_horas REAL DEFAULT 24.0,
+        asistencia_formal REAL DEFAULT 0.85,
+        asistencia_virtual REAL DEFAULT 0.75,
         fecha_corte TEXT,
         FOREIGN KEY (id_curso) REFERENCES cursos(id_curso),
         FOREIGN KEY (id_estudiante) REFERENCES estudiantes(id_estudiante)
     );
     """)
+
+    # Migración no destructiva de columnas para bases de datos existentes
+    cursor.execute("PRAGMA table_info(metricas);")
+    existing_cols = [row[1] for row in cursor.fetchall()]
+    nuevas_columnas = [
+        ("tendencia_calificaciones", "REAL DEFAULT 0.0"),
+        ("margen_entrega_horas", "REAL DEFAULT 24.0"),
+        ("asistencia_formal", "REAL DEFAULT 0.85"),
+        ("asistencia_virtual", "REAL DEFAULT 0.75")
+    ]
+    for col_name, col_type in nuevas_columnas:
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE metricas ADD COLUMN {col_name} {col_type};")
 
     # 4. Tabla Predicciones de Riesgo (calculadas por la IA)
     cursor.execute("""

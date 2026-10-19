@@ -30,6 +30,7 @@ class _RiskScreenState extends State<RiskScreen> {
       context.read<RiesgoViewModel>().loadDetail(
         widget.courseId,
         studentId: authStudent?.idEstudiante ?? 'EST-0001',
+        refresh: false,
       );
     });
   }
@@ -69,6 +70,7 @@ class _RiskScreenState extends State<RiskScreen> {
               context.read<RiesgoViewModel>().loadDetail(
                     widget.courseId,
                     studentId: authStudent?.idEstudiante ?? 'EST-0001',
+                    refresh: true,
                   );
             },
           ),
@@ -106,9 +108,20 @@ class _EstimacionView extends StatelessWidget {
     final soft = AppColors.softForLevel(detail.nivelRiesgo);
     final esCritico = detail.nivelRiesgo == 'CRITICO';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      child: Column(
+    return RefreshIndicator(
+      color: AppColors.brand,
+      onRefresh: () async {
+        final authStudent = context.read<AuthViewModel>().student;
+        await context.read<RiesgoViewModel>().loadDetail(
+              detail.idCurso,
+              studentId: authStudent?.idEstudiante ?? 'EST-0001',
+              refresh: true,
+            );
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -243,8 +256,9 @@ class _EstimacionView extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   static void abrirMoodleModal(BuildContext context, String nombreCurso) {
     showModalBottomSheet(

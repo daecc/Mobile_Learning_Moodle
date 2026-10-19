@@ -54,16 +54,16 @@ def calcular_nivel_riesgo(probabilidad: float) -> Tuple[str, str, str, str]:
 
 def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveStat]:
     """
-    Traduce las variables predictoras del estudiante en tarjetas visuales
+    Traduce las 7 variables predictoras del estudiante en tarjetas visuales
     claras para la pantalla de control metacognitivo.
     """
     metricas = []
 
     # 1. Días de inactividad
-    dias_inact = float(row.get("dias_inactividad_consecutivos", 0))
+    dias_inact = float(row.get("dias_inactividad", row.get("dias_inactividad_consecutivos", 0)))
     if dias_inact <= 3:
         estado_inact = "ok"
-        desc_inact = "Excelente frecuencia de acceso a la plataforma."
+        desc_inact = "Frecuencia constante de acceso a la plataforma."
     elif dias_inact <= 7:
         estado_inact = "alerta"
         desc_inact = "Llevas varios días sin consultar los contenidos del curso."
@@ -80,17 +80,17 @@ def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveSt
         descripcion=desc_inact
     ))
 
-    # 2. Calificación histórica promedio
-    prom = float(row.get("calificacion_historica_promedio", 12))
+    # 2. Calificación promedio
+    prom = float(row.get("promedio_calificaciones", row.get("calificacion_historica_promedio", 12)))
     if prom >= 14:
         estado_prom = "ok"
         desc_prom = "Rendimiento aprobatorio sólido en evaluaciones."
-    elif prom >= 11:
+    elif prom >= 10.5:
         estado_prom = "alerta"
         desc_prom = "Promedio en rango límite aprobatorio (escala 0-20)."
     else:
         estado_prom = "critico"
-        desc_prom = "Promedio desaprobatorio. Requiere reforzamiento inmediato."
+        desc_prom = "Promedio desaprobatorio. Requiere reforzamiento urgente."
 
     metricas.append(MetacognitiveStat(
         clave="promedio",
@@ -101,16 +101,16 @@ def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveSt
         descripcion=desc_prom
     ))
 
-    # 3. Tendencia de calificaciones
+    # 3. Tendencia de calificaciones (Pendiente / Slope)
     tend = float(row.get("tendencia_calificaciones", 0))
-    if tend > 0.1:
+    if tend > 0.05:
         estado_tend = "ok"
         valor_tend = f"+{tend:.2f}"
-        desc_tend = "Tus notas van en ascenso en los últimos cortes."
+        desc_tend = "Tus notas van en ascenso positivo en las últimas entregas."
     elif tend >= -0.2:
         estado_tend = "alerta"
         valor_tend = f"{tend:.2f}"
-        desc_tend = "Tus notas se mantienen estables respecto a inicios del ciclo."
+        desc_tend = "Tus notas se mantienen estables respecto al inicio del curso."
     else:
         estado_tend = "critico"
         valor_tend = f"{tend:.2f}"
@@ -118,53 +118,98 @@ def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveSt
 
     metricas.append(MetacognitiveStat(
         clave="tendencia",
-        titulo="Tendencia de notas",
+        titulo="Tendencia de notas (Pendiente)",
         valor=valor_tend,
         unidad="pts/corte",
         estado=estado_tend,
         descripcion=desc_tend
     ))
 
-    # 4. Tasa de entregas tardías
-    entregas_tardias = float(row.get("tasa_entregas_tardias", 0)) * 100
-    if entregas_tardias <= 20:
-        estado_ent = "ok"
-        desc_ent = "Puntualidad óptima en entrega de tareas y talleres."
-    elif entregas_tardias <= 50:
-        estado_ent = "alerta"
-        desc_ent = "Algunas tareas fueron enviadas fuera del plazo establecido."
+    # 4. Tasa de tareas pendientes
+    tareas_pend = float(row.get("tasa_tareas_pendientes", 0)) * 100
+    if tareas_pend <= 10:
+        estado_pend = "ok"
+        desc_pend = "Al día con todos los talleres y entregas de Moodle."
+    elif tareas_pend <= 40:
+        estado_pend = "alerta"
+        desc_pend = "Tienes tareas pendientes por entregar en la plataforma."
     else:
-        estado_ent = "critico"
-        desc_ent = "Alto porcentaje de entregas fuera de fecha o no presentadas."
+        estado_pend = "critico"
+        desc_pend = "Alto porcentaje de tareas adeudadas o sin entregar."
 
     metricas.append(MetacognitiveStat(
         clave="entregas",
-        titulo="Entregas fuera de fecha",
-        valor=f"{int(entregas_tardias)}%",
+        titulo="Tareas pendientes",
+        valor=f"{int(tareas_pend)}%",
         unidad=None,
-        estado=estado_ent,
-        descripcion=desc_ent
+        estado=estado_pend,
+        descripcion=desc_pend
     ))
 
-    # 5. Visualización de materiales
-    vis_mat = float(row.get("tasa_visualizacion_materiales", 0)) * 100
-    if vis_mat >= 70:
-        estado_vis = "ok"
-        desc_vis = "Has revisado la mayoría de recursos y diapositivas."
-    elif vis_mat >= 40:
-        estado_vis = "alerta"
-        desc_vis = "Te faltan materiales clave por revisar en esta unidad."
+    # 5. Margen de entrega (Procrastinación)
+    margen_h = float(row.get("margen_entrega_horas", 12))
+    if margen_h >= 24:
+        estado_mrg = "ok"
+        valor_mrg = f"+{int(margen_h)}h"
+        desc_mrg = "Excelente disciplina: entregas con más de 24h de anticipación."
+    elif margen_h >= 0:
+        estado_mrg = "alerta"
+        valor_mrg = f"+{int(margen_h)}h"
+        desc_mrg = "Entregas muy cerca del cierre de plazo (riesgo de procrastinación)."
     else:
-        estado_vis = "critico"
-        desc_vis = "Baja interacción con lecturas y recursos del curso."
+        estado_mrg = "critico"
+        valor_mrg = f"{int(margen_h)}h"
+        desc_mrg = "Entregas fuera de fecha o tareas vencidas sin enviar."
 
     metricas.append(MetacognitiveStat(
-        clave="materiales",
-        titulo="Materiales revisados",
-        valor=f"{int(vis_mat)}%",
+        clave="procrastinacion",
+        titulo="Margen de entrega",
+        valor=valor_mrg,
         unidad=None,
-        estado=estado_vis,
-        descripcion=desc_vis
+        estado=estado_mrg,
+        descripcion=desc_mrg
+    ))
+
+    # 6. Asistencia formal a sesiones (Tipo 1)
+    asist_formal = float(row.get("asistencia_formal_sesiones", 0.85)) * 100
+    if asist_formal >= 80:
+        estado_af = "ok"
+        desc_af = "Asistencia regular a clases y sesiones sincrónicas."
+    elif asist_formal >= 70:
+        estado_af = "alerta"
+        desc_af = "Asistencia en el umbral límite reglamentario (cuidado con el DPI)."
+    else:
+        estado_af = "critico"
+        desc_af = "Inasistencias acumuladas en zona de riesgo de inhabilitación."
+
+    metricas.append(MetacognitiveStat(
+        clave="asistencia_formal",
+        titulo="Asistencia a sesiones",
+        valor=f"{int(asist_formal)}%",
+        unidad=None,
+        estado=estado_af,
+        descripcion=desc_af
+    ))
+
+    # 7. Asistencia virtual a la plataforma (Tipo 2)
+    asist_virt = float(row.get("asistencia_virtual_regularidad", 0.75)) * 100
+    if asist_virt >= 70:
+        estado_av = "ok"
+        desc_av = "Ingresos regulares y estudio autónomo semanal en el aula virtual."
+    elif asist_virt >= 40:
+        estado_av = "alerta"
+        desc_av = "Frecuencia de visita semanal irregular en la plataforma."
+    else:
+        estado_av = "critico"
+        desc_av = "Muy escasa presencia virtual en el curso."
+
+    metricas.append(MetacognitiveStat(
+        clave="asistencia_virtual",
+        titulo="Presencia virtual semanal",
+        valor=f"{int(asist_virt)}%",
+        unidad=None,
+        estado=estado_av,
+        descripcion=desc_av
     ))
 
     return metricas

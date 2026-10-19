@@ -22,14 +22,26 @@ class RiesgoViewModel extends ChangeNotifier {
   String? get error => _error;
   String? get courseId => _courseId;
 
-  Future<void> loadDetail(String courseId, {String studentId = 'EST-0001'}) async {
+  Future<void> loadDetail(
+    String courseId, {
+    String studentId = 'EST-0001',
+    bool refresh = false,
+  }) async {
+    // Si se consulta un curso nuevo, limpiar los datos previos para evitar que se muestren desfasados
+    if (_courseId != courseId) {
+      _detail = null;
+    }
     _courseId = courseId;
     _status = RiesgoStatus.loading;
     _error = null;
     notifyListeners();
 
     try {
-      _detail = await apiService.getCourseRiskDetail(studentId, courseId);
+      _detail = await apiService.getCourseRiskDetail(
+        studentId,
+        courseId,
+        refresh: refresh,
+      );
       _status = RiesgoStatus.loaded;
     } catch (e) {
       _error = 'No pudimos calcular el riesgo de este curso.';

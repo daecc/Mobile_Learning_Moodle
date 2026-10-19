@@ -276,14 +276,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
           CoursesStatus.empty => _EmptyState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
           CoursesStatus.error => _ErrorState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
@@ -291,7 +291,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
               color: AppColors.brand,
               onRefresh: () async {
                 final authStudent = context.read<AuthViewModel>().student;
-                await vm.loadCourses(studentId: authStudent?.idEstudiante);
+                await vm.loadCourses(
+                  studentId: authStudent?.idEstudiante,
+                  refresh: true,
+                );
               },
               child: _LoadedState(
                 vm: vm,

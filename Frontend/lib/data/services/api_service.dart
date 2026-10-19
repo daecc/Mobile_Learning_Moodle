@@ -64,11 +64,15 @@ class ApiService {
   // Cursos
   // ---------------------------------------------------------------------------
 
-  /// Obtiene los cursos del estudiante. Si la API no responde, usa la copia local.
-  Future<StudentCoursesResponse> getStudentCourses(String studentId) async {
+  /// Obtiene los cursos del estudiante. Si la API no responde, usa la copia local solo en modo demo.
+  Future<StudentCoursesResponse> getStudentCourses(
+    String studentId, {
+    bool refresh = false,
+  }) async {
     try {
+      final query = refresh ? '?refresh=true' : '';
       final resp = await _client
-          .get(Uri.parse('$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos'))
+          .get(Uri.parse('$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos$query'))
           .timeout(ApiConstants.timeout);
       if (resp.statusCode == 200) {
         return StudentCoursesResponse.fromJson(
@@ -76,21 +80,28 @@ class ApiService {
         );
       }
       throw Exception('Respuesta ${resp.statusCode}');
-    } catch (_) {
-      return getDemoCourses(studentId);
+    } catch (e) {
+      // Solo recurrir a cursos inventados/demo si el usuario está explícitamente en modo demo o pruebas
+      final upper = studentId.toUpperCase();
+      if (upper.contains('DEMO') || studentId == 'EST-0001') {
+        return getDemoCourses(studentId);
+      }
+      rethrow;
     }
   }
 
-  /// Detalle de riesgo de un curso. Si la API no responde, usa la copia local.
+  /// Detalle de riesgo de un curso. Si la API no responde, usa la copia local solo en modo demo.
   Future<RiskDetailResponse> getCourseRiskDetail(
     String studentId,
-    String courseId,
-  ) async {
+    String courseId, {
+    bool refresh = false,
+  }) async {
     try {
+      final query = refresh ? '?refresh=true' : '';
       final resp = await _client
           .get(
             Uri.parse(
-              '$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos/$courseId/riesgo',
+              '$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos/$courseId/riesgo$query',
             ),
           )
           .timeout(ApiConstants.timeout);
@@ -100,8 +111,13 @@ class ApiService {
         );
       }
       throw Exception('Respuesta ${resp.statusCode}');
-    } catch (_) {
-      return getDemoRiskDetail(studentId, courseId);
+    } catch (e) {
+      // Solo recurrir a cursos inventados/demo si el usuario está explícitamente en modo demo o pruebas
+      final upper = studentId.toUpperCase();
+      if (upper.contains('DEMO') || studentId == 'EST-0001') {
+        return getDemoRiskDetail(studentId, courseId);
+      }
+      rethrow;
     }
   }
 

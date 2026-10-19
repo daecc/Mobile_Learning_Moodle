@@ -42,18 +42,15 @@ def test_api():
         print(f"  * {m['titulo']}: {m['valor']} {unidad} [{m['estado']}]")
     assert r.status_code == 200
 
-    print("\n--- Test 5: Inferencia ML directa ---")
+    print("\n--- Test 5: Inferencia ML directa (7 variables) ---")
     r = client.post("/api/predict", json={
-        "carga_academica_actual": 5,
-        "calificacion_historica_promedio": 8.0,
+        "promedio_calificaciones": 8.0,
         "tendencia_calificaciones": -0.8,
-        "tasa_acierto_primer_intento": 0.25,
-        "duracion_intento_minutos": 30,
-        "indice_friccion_cognitiva": 5.0,
-        "dias_inactividad_consecutivos": 14,
-        "tasa_entregas_tardias": 0.8,
-        "nivel_interaccion_social": 0.1,
-        "tasa_visualizacion_materiales": 0.15
+        "dias_inactividad": 14,
+        "tasa_tareas_pendientes": 0.8,
+        "margen_entrega_horas": -48.0,
+        "asistencia_formal_sesiones": 0.5,
+        "asistencia_virtual_regularidad": 0.2
     })
     pred = r.json()
     print("Status:", r.status_code, pred)
