@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/course_model.dart';
 import '../../data/models/risk_detail_model.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
@@ -40,9 +41,11 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
 
   Future<void> _cargar() {
     final courses = context.read<CoursesViewModel>();
+    final authStudent = context.read<AuthViewModel>().student;
+    final studentId = authStudent?.idEstudiante ?? courses.studentId;
     return context
         .read<MetacognitiveViewModel>()
-        .load(courses.courses, courses.studentId);
+        .load(courses.courses, studentId);
   }
 
   @override
@@ -50,6 +53,15 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
     final themeVm = context.watch<ThemeViewModel>();
     final vm = context.watch<MetacognitiveViewModel>();
     final coursesVm = context.watch<CoursesViewModel>();
+
+    // Si los cursos ya están disponibles y las métricas están en espera, cargarlas automáticamente
+    if (coursesVm.courses.isNotEmpty &&
+        vm.status == MetacognitiveStatus.idle &&
+        !vm.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _cargar();
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
@@ -106,6 +118,24 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
     MetacognitiveViewModel vm,
     CoursesViewModel coursesVm,
   ) {
+    if (coursesVm.isLoading || vm.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(strokeWidth: 3),
+            const SizedBox(height: 16),
+            Text(
+              'Cargando métricas de autorregulación...',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondaryOf(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (coursesVm.courses.isEmpty) {
       return _Mensaje(
         icono: Icons.menu_book_outlined,
@@ -124,7 +154,15 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
       );
     }
     if (vm.cursos.isEmpty) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 3));
+      return _Mensaje(
+        icono: Icons.analytics_outlined,
+        texto: 'Presiona para sincronizar métricas con Moodle.',
+        accion: FilledButton(
+          onPressed: _cargar,
+          style: FilledButton.styleFrom(backgroundColor: AppColors.brand),
+          child: const Text('Cargar métricas'),
+        ),
+      );
     }
 
     final estimados =

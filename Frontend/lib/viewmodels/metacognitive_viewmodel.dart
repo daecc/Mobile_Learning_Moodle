@@ -65,6 +65,13 @@ class MetacognitiveViewModel extends ChangeNotifier {
   }
 
   Future<void> load(List<CourseRiskSummary> cursos, String studentId) async {
+    if (cursos.isEmpty) {
+      _status = MetacognitiveStatus.idle;
+      _cursos = [];
+      notifyListeners();
+      return;
+    }
+
     _status = MetacognitiveStatus.loading;
     notifyListeners();
 
