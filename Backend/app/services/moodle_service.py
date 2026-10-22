@@ -302,6 +302,7 @@ class MoodleService:
                 try:
                     with ThreadPoolExecutor(max_workers=6) as executor:
                         f_assigns = executor.submit(self.client.call_function, moodle_token, "mod_assign_get_assignments")
+                        f_recent = executor.submit(self.client.call_function, moodle_token, "block_recentlyaccesseditems_get_recent_items")
                         grades_futures = {c.get("id"): executor.submit(self.client.get_user_course_grades, moodle_token, c.get("id"), userid) for c in courses}
 
                         try:
@@ -310,6 +311,14 @@ class MoodleService:
                                 assigns_by_course[c_assign.get("id")] = c_assign.get("assignments", [])
                         except Exception as ae:
                             logger.debug(f"No se pudieron obtener tareas de Moodle: {ae}")
+
+                        try:
+                            recent_items_list = f_recent.result()
+                            if not isinstance(recent_items_list, list):
+                                recent_items_list = []
+                        except Exception as re:
+                            logger.debug(f"No se pudieron obtener accesos recientes de Moodle: {re}")
+                            recent_items_list = []
 
                         # Obtener estados de entrega de cada asignación en paralelo
                         all_assign_ids = [a.get("id") for assigns in assigns_by_course.values() for a in assigns if a.get("id")]
@@ -376,7 +385,8 @@ class MoodleService:
                             except (ValueError, TypeError):
                                 pass
 
-                    if grades_vals:
+                    tiene_calificaciones = len(grades_vals) > 0
+                    if tiene_calificaciones:
                         promedio = round(float(np.mean(grades_vals)), 1)
                         if len(grades_vals) >= 2:
                             x_idx = np.arange(len(grades_vals))
@@ -385,7 +395,8 @@ class MoodleService:
                         else:
                             tendencia = 0.0
                     else:
-                        promedio = 14.0 if dias_inact <= 3 else 11.5
+                        # Si no hay calificaciones en Moodle aún, imputación neutra para el modelo de ML
+                        promedio = 12.5
                         tendencia = 0.0
 
                     if asist_formal_found is not None:
@@ -399,6 +410,7 @@ class MoodleService:
 
                     total_tasks = len(course_assigns) + len(quiz_modules)
                     margins_list = []
+                    course_tasks_detail = []
 
                     if total_tasks == 0:
                         pending_tasks = 0
@@ -406,6 +418,7 @@ class MoodleService:
                     else:
                         for a in course_assigns:
                             aid = a.get("id")
+                            aname = a.get("name", "Tarea")
                             duedate = a.get("duedate", 0)
                             sub = subs_by_assign.get(aid, {})
                             lastattempt = sub.get("lastattempt", {})
@@ -413,8 +426,24 @@ class MoodleService:
                             sub_status = submission.get("status")
                             timemodified = submission.get("timemodified", 0)
 
+                            # Buscar calificación en grade_items para esta tarea
+                            grade_str = None
+                            for gi in grade_items:
+                                if gi.get("itemmodule") == "assign" and gi.get("iteminstance") == aid:
+                                    g_val = gi.get("graderaw")
+                                    if g_val is not None:
+                                        try:
+                                            grade_str = f"{float(g_val):.1f} / {float(gi.get('grademax', 20)):.0f}"
+                                        except (ValueError, TypeError):
+                                            grade_str = str(g_val)
+                                    break
+
+                            due_str = datetime.fromtimestamp(duedate).strftime("%d/%m/%Y %H:%M") if duedate > 0 else "Sin fecha límite"
+                            sub_str = datetime.fromtimestamp(timemodified).strftime("%d/%m/%Y %H:%M") if (timemodified > 0 and sub_status == "submitted") else None
+
                             if sub_status == "submitted":
                                 # Tarea entregada formalmente
+                                estado = "entregada"
                                 if duedate > 0 and timemodified > 0:
                                     m_h = (duedate - timemodified) / 3600.0
                                     margins_list.append(m_h)
@@ -424,11 +453,36 @@ class MoodleService:
                                 # Tarea aún no entregada
                                 pending_tasks += 1
                                 if duedate > 0 and now_ts > duedate:
+                                    estado = "vencida"
                                     margins_list.append(-48.0)  # Penalización por tarea vencida sin entregar
                                 else:
-                                    # Tarea en plazo pero NO entregada todavía:
-                                    # No otorga bono de entrega anticipada ficticio
-                                    pass
+                                    estado = "pendiente"
+
+                            course_tasks_detail.append({
+                                "id": aid,
+                                "nombre": aname,
+                                "estado": estado,
+                                "fecha_limite": due_str,
+                                "calificacion": grade_str,
+                                "fecha_entrega": sub_str
+                            })
+
+                        for qm in quiz_modules:
+                            qid = qm.get("iteminstance") or qm.get("id", 0)
+                            qname = qm.get("itemname", "Cuestionario")
+                            q_val = qm.get("graderaw")
+                            q_grade_str = f"{float(q_val):.1f} / {float(qm.get('grademax', 20)):.0f}" if q_val is not None else None
+                            q_estado = "entregada" if q_val is not None else "pendiente"
+                            if q_val is None:
+                                pending_tasks += 1
+                            course_tasks_detail.append({
+                                "id": qid,
+                                "nombre": qname,
+                                "estado": q_estado,
+                                "fecha_limite": "Evaluación en Moodle",
+                                "calificacion": q_grade_str,
+                                "fecha_entrega": None
+                            })
 
                         if margins_list:
                             margen_entrega = round(float(min(margins_list)), 1)
@@ -439,6 +493,7 @@ class MoodleService:
                 else:
                     # Fallback local determinista para modo demo o sin red
                     base_hash = abs(hash(internal_id)) % 7
+                    tiene_calificaciones = True
                     promedio = 15.0 if base_hash in [0, 1, 2] else (12.5 if base_hash in [3, 4] else 9.5)
                     dias_inact = 0 if base_hash in [0, 1] else (2 if base_hash in [2, 3] else 4)
                     pending_tasks = 0 if dias_inact <= 1 else (1 if dias_inact <= 3 else 2)
@@ -447,10 +502,73 @@ class MoodleService:
                     margen_entrega = -48.0 if pending_tasks > 1 else (12.0 if pending_tasks == 1 else 48.0)
                     asist_formal = 0.95 if dias_inact <= 2 else 0.75
                     grades_vals = [promedio - 0.5, promedio + 0.3, promedio]
+                    course_tasks_detail = [
+                        {
+                            "id": 101,
+                            "nombre": "Avance de Proyecto - Fase 1",
+                            "estado": "entregada",
+                            "fecha_limite": "18/10/2026 23:59",
+                            "calificacion": "16.0 / 20",
+                            "fecha_entrega": "17/10/2026 20:15"
+                        },
+                        {
+                            "id": 102,
+                            "nombre": "Informe de Pruebas Unitarias",
+                            "estado": "pendiente" if pending_tasks > 0 else "entregada",
+                            "fecha_limite": "25/10/2026 23:59",
+                            "calificacion": None if pending_tasks > 0 else "14.5 / 20",
+                            "fecha_entrega": None if pending_tasks > 0 else "24/10/2026 18:30"
+                        }
+                    ]
 
-                # 4. Asistencia Virtual por frecuencia semanal
-                accesos_semana = max(0, min(7, 7 - dias_inact))
-                asist_virtual = round(min(1.0, max(0.1, accesos_semana / 3.0)), 3)
+                # 4. Asistencia Virtual por frecuencia semanal real
+                if is_live:
+                    one_week_ago = now_ts - (7 * 86400)
+                    ts_list = []
+                    lastaccess_val = c.get("lastaccess")
+                    if lastaccess_val and isinstance(lastaccess_val, (int, float)) and lastaccess_val >= one_week_ago:
+                        ts_list.append(int(lastaccess_val))
+
+                    for it in recent_items_list:
+                        if it.get("courseid") == cid:
+                            t_it = it.get("timeaccess")
+                            if t_it and isinstance(t_it, (int, float)) and t_it >= one_week_ago:
+                                ts_list.append(int(t_it))
+
+                    # Recuperar historial persistido en SQLite para este estudiante y curso
+                    try:
+                        cur.execute("""
+                            SELECT timestamp FROM historial_accesos 
+                            WHERE id_estudiante = ? AND id_curso = ? AND timestamp >= ?;
+                        """, (id_estudiante, internal_id, one_week_ago))
+                        for row in cur.fetchall():
+                            ts_list.append(row[0])
+                    except Exception:
+                        pass
+
+                    # Guardar timestamps encontrados para no perder historial futuro
+                    for ts in ts_list:
+                        try:
+                            cur.execute("""
+                                INSERT OR IGNORE INTO historial_accesos (id_estudiante, id_curso, timestamp)
+                                VALUES (?, ?, ?);
+                            """, (id_estudiante, internal_id, ts))
+                        except Exception:
+                            pass
+
+                    # Máxima rigurosidad (Learning Analytics): Días únicos con actividad en los últimos 7 días.
+                    # Evita que 10 aperturas de archivos en un solo día distorsionen la regularidad semanal.
+                    ts_list.sort()
+                    if ts_list:
+                        dias_con_actividad = {datetime.fromtimestamp(ts).strftime("%Y-%m-%d") for ts in ts_list}
+                        dias_activos = max(1, len(dias_con_actividad))
+                    else:
+                        dias_activos = 1 if dias_inact <= 7 else 0
+                else:
+                    dias_activos = max(1, 4 if dias_inact <= 1 else (2 if dias_inact <= 3 else 1))
+
+                accesos_semana = dias_activos
+                asist_virtual = round(min(1.0, max(0.1, dias_activos / 4.0)), 3)
                 tasa_pend = (pending_tasks / total_tasks) if total_tasks > 0 else 0.0
 
                 # 5. Insertar Curso
@@ -462,7 +580,8 @@ class MoodleService:
                     codigo = excluded.codigo;
                 """, (internal_id, cid, c_name, c_short, id_estudiante))
 
-                # 6. Insertar Métricas
+                # 6. Insertar Métricas (sin inventar números falsos para el promedio)
+                prom_guardar = promedio if tiene_calificaciones else None
                 cur.execute("""
                 INSERT INTO metricas (
                     id_curso, id_estudiante, dias_inactividad, tareas_totales,
@@ -472,7 +591,7 @@ class MoodleService:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'));
                 """, (
                     internal_id, id_estudiante, dias_inact, total_tasks,
-                    pending_tasks, promedio, accesos_semana, promedio,
+                    pending_tasks, prom_guardar, accesos_semana, prom_guardar,
                     tendencia, margen_entrega, asist_formal, asist_virtual
                 ))
 
@@ -494,7 +613,16 @@ class MoodleService:
                     pct = int(round(prob_riesgo * 100))
                     nivel, _, _, _ = calcular_nivel_riesgo(prob_riesgo)
 
-                nivel, alerta_t, alerta_m, accion_rec = calcular_nivel_riesgo(prob_riesgo)
+                factores_metricas = {
+                    "dias_inactividad": dias_inact,
+                    "promedio_calificaciones": promedio if tiene_calificaciones else None,
+                    "tiene_calificaciones": tiene_calificaciones,
+                    "tareas_pendientes": pending_tasks,
+                    "tareas_totales": total_tasks,
+                    "margen_entrega_horas": margen_entrega,
+                    "dias_activos": dias_activos,
+                }
+                nivel, alerta_t, alerta_m, accion_rec = calcular_nivel_riesgo(prob_riesgo, factores_metricas)
 
                 # 8. Factores explicativos XAI (Nielsen H6)
                 chart_days = [1 if i >= (14 - dias_inact) else 0 for i in range(14)]
@@ -502,11 +630,6 @@ class MoodleService:
                     chart_tasks = [1] * max(0, total_tasks - pending_tasks) + [0] * pending_tasks
                 else:
                     chart_tasks = [1]
-
-                if grades_vals and len(grades_vals) >= 2:
-                    quiz_trend_vals = [round(float(g), 1) for g in grades_vals[-4:]]
-                else:
-                    quiz_trend_vals = [round(promedio - 0.5, 1), round(promedio + (tendencia * 0.5), 1), round(promedio, 1)]
 
                 subtitulo_tareas = "No hay tareas programadas en Moodle." if total_tasks == 0 else (
                     "Todas las tareas han sido entregadas en Moodle." if pending_tasks == 0 else
@@ -523,34 +646,58 @@ class MoodleService:
                         "chartType": "day_circles",
                         "chartValues": chart_days
                     },
-                    {
+                ]
+
+                # Factor de calificaciones: transparente y real
+                if tiene_calificaciones:
+                    if len(grades_vals) >= 2:
+                        quiz_trend_vals = [round(float(g), 1) for g in grades_vals[-4:]]
+                    else:
+                        quiz_trend_vals = [round(promedio, 1)]
+
+                    factores_list.append({
                         "clave": "cuestionarios",
                         "titulo": f"Promedio en evaluaciones: {promedio:.1f}/20",
-                        "impacto": "reduce" if promedio >= 13 else "aumenta",
+                        "impacto": "reduce" if promedio >= 13.5 else ("aumenta" if promedio < 10.5 else "reduce"),
                         "influencia": 3,
                         "subtitulo": "Calculado del reporte de calificaciones y quizes en Moodle.",
                         "chartType": "quiz_trend",
                         "chartValues": quiz_trend_vals
-                    },
-                    {
-                        "clave": "tareas",
-                        "titulo": f"Tareas pendientes: {pending_tasks} de {total_tasks}",
-                        "impacto": "aumenta" if pending_tasks > 0 else "reduce",
-                        "influencia": 2,
-                        "subtitulo": subtitulo_tareas,
-                        "chartType": "tasks_timeline",
-                        "chartValues": chart_tasks
-                    },
-                    {
-                        "clave": "accesos",
-                        "titulo": f"Accesos semanales al curso: {max(1, 7 - dias_inact)} sesiones",
-                        "impacto": "reduce" if dias_inact <= 3 else "aumenta",
-                        "influencia": 2,
-                        "subtitulo": "Interacción registrada frente a la media de la sección.",
-                        "chartType": "weekly_logins",
-                        "chartValues": [max(0, 5 - dias_inact), 3, 2, max(1, 4 - dias_inact), 4]
-                    }
-                ]
+                    })
+                else:
+                    factores_list.append({
+                        "clave": "cuestionarios",
+                        "titulo": "Aún no tienes calificaciones registradas",
+                        "impacto": "reduce",
+                        "influencia": 1,
+                        "subtitulo": "El docente todavía no ha publicado notas en este curso de Moodle.",
+                        "chartType": "none",
+                        "chartValues": []
+                    })
+
+                factores_list.append({
+                    "clave": "tareas",
+                    "titulo": f"Tareas pendientes: {pending_tasks} de {total_tasks}",
+                    "impacto": "aumenta" if pending_tasks > 0 else "reduce",
+                    "influencia": 2,
+                    "subtitulo": subtitulo_tareas,
+                    "chartType": "tasks_timeline",
+                    "chartValues": chart_tasks,
+                    "tareas": course_tasks_detail
+                })
+
+                tus_dias = dias_activos
+                meta_recomendada = 4
+                palabra_dia = "día" if tus_dias == 1 else "días"
+                factores_list.append({
+                    "clave": "accesos",
+                    "titulo": f"Constancia semanal: {tus_dias} {palabra_dia} activo{'s' if tus_dias != 1 else ''}",
+                    "impacto": "reduce" if tus_dias >= meta_recomendada else "aumenta",
+                    "influencia": 2,
+                    "subtitulo": f"Registraste estudio en {tus_dias} {palabra_dia} esta semana frente a la meta recomendada ({meta_recomendada} días).",
+                    "chartType": "weekly_logins",
+                    "chartValues": [float(tus_dias), float(meta_recomendada)]
+                })
 
                 cur.execute("""
                 INSERT INTO predicciones (

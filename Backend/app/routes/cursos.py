@@ -9,7 +9,8 @@ from app.models import (
     RiskDetailResponse,
     MetacognitiveStat,
     RiskFactorModel,
-    FactoresBundleModel
+    FactoresBundleModel,
+    TaskItemModel
 )
 from app.database import get_db_connection
 from app.services.moodle_service import moodle_service
@@ -228,24 +229,44 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str, refresh: bool = Fa
         ))
 
         # 2. Promedio
-        metricas_list.append(MetacognitiveStat(
-            clave="promedio",
-            titulo="Promedio acumulado",
-            valor=f"{prom:.1f}",
-            unidad="/ 20",
-            estado="ok" if prom >= 13 else ("alerta" if prom >= 10.5 else "critico"),
-            descripcion="Notas de evaluaciones y cuestionarios."
-        ))
+        if prom is None:
+            metricas_list.append(MetacognitiveStat(
+                clave="promedio",
+                titulo="Promedio en evaluaciones",
+                valor="Sin notas",
+                unidad="",
+                estado="ok",
+                descripcion="Aún no se registran calificaciones en Moodle."
+            ))
+        else:
+            metricas_list.append(MetacognitiveStat(
+                clave="promedio",
+                titulo="Promedio acumulado",
+                valor=f"{prom:.1f}",
+                unidad="/ 20",
+                estado="ok" if prom >= 13.5 else ("alerta" if prom >= 10.5 else "critico"),
+                descripcion="Notas de evaluaciones y cuestionarios."
+            ))
 
         # 3. Tendencia
-        metricas_list.append(MetacognitiveStat(
-            clave="tendencia",
-            titulo="Tendencia de notas (Slope)",
-            valor=f"+{tend:.2f}" if tend > 0 else f"{tend:.2f}",
-            unidad="pts/corte",
-            estado="ok" if tend >= 0.05 else ("alerta" if tend >= -0.2 else "critico"),
-            descripcion="Inclinación y evolución de calificaciones."
-        ))
+        if prom is None:
+            metricas_list.append(MetacognitiveStat(
+                clave="tendencia",
+                titulo="Tendencia de notas (Slope)",
+                valor="Sin historial",
+                unidad="",
+                estado="ok",
+                descripcion="Se calculará con 2 o más calificaciones."
+            ))
+        else:
+            metricas_list.append(MetacognitiveStat(
+                clave="tendencia",
+                titulo="Tendencia de notas (Slope)",
+                valor=f"+{tend:.2f}" if tend > 0 else f"{tend:.2f}",
+                unidad="pts/corte",
+                estado="ok" if tend >= 0.05 else ("alerta" if tend >= -0.2 else "critico"),
+                descripcion="Inclinación y evolución de calificaciones."
+            ))
 
         # 4. Tareas pendientes (sin inventar números falsos)
         if tareas_tot == 0:
@@ -322,6 +343,18 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str, refresh: bool = Fa
             riesgos_list = []
             favorables_list = []
             for item in raw_factores:
+                tareas_raw = item.get("tareas", [])
+                tareas_models = [
+                    TaskItemModel(
+                        id=int(t.get("id", 0)),
+                        nombre=str(t.get("nombre", "Tarea")),
+                        estado=str(t.get("estado", "pendiente")),
+                        fecha_limite=t.get("fecha_limite"),
+                        calificacion=t.get("calificacion"),
+                        fecha_entrega=t.get("fecha_entrega")
+                    )
+                    for t in tareas_raw if isinstance(t, dict)
+                ]
                 f_model = RiskFactorModel(
                     clave=item.get("clave", ""),
                     titulo=item.get("titulo", ""),
@@ -329,7 +362,8 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str, refresh: bool = Fa
                     impacto=item.get("impacto", "reduce"),
                     influencia=item.get("influencia", 1),
                     chartType=item.get("chartType"),
-                    chartValues=[float(v) for v in item.get("chartValues", [])]
+                    chartValues=[float(v) for v in item.get("chartValues", [])],
+                    tareas=tareas_models
                 )
                 if item.get("impacto") == "aumenta":
                     riesgos_list.append(f_model)

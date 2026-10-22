@@ -30,6 +30,40 @@ class MetacognitiveStat {
   }
 }
 
+/// Detalle de una tarea individual de Moodle.
+class TaskDetailItem {
+  final int id;
+  final String nombre;
+  final String estado; // entregada | pendiente | vencida
+  final String? fechaLimite;
+  final String? calificacion;
+  final String? fechaEntrega;
+
+  const TaskDetailItem({
+    required this.id,
+    required this.nombre,
+    required this.estado,
+    this.fechaLimite,
+    this.calificacion,
+    this.fechaEntrega,
+  });
+
+  factory TaskDetailItem.fromJson(Map<String, dynamic> json) {
+    return TaskDetailItem(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      nombre: json['nombre'] as String? ?? 'Tarea',
+      estado: json['estado'] as String? ?? 'pendiente',
+      fechaLimite: json['fecha_limite'] as String?,
+      calificacion: json['calificacion'] as String?,
+      fechaEntrega: json['fecha_entrega'] as String?,
+    );
+  }
+
+  bool get estaEntregada => estado == 'entregada';
+  bool get estaVencida => estado == 'vencida';
+  bool get estaPendiente => estado == 'pendiente';
+}
+
 /// Factor individual que explica la estimación de riesgo.
 class RiskFactor {
   final String clave;
@@ -39,6 +73,7 @@ class RiskFactor {
   final int influencia;
   final String? chartType; // day_circles | quiz_trend | tasks_timeline | weekly_logins
   final List<num> chartValues;
+  final List<TaskDetailItem> tareas;
 
   const RiskFactor({
     required this.clave,
@@ -48,6 +83,7 @@ class RiskFactor {
     this.influencia = 1,
     this.chartType,
     this.chartValues = const [],
+    this.tareas = const [],
   });
 
   factory RiskFactor.fromJson(Map<String, dynamic> json) {
@@ -60,6 +96,9 @@ class RiskFactor {
       chartType: json['chartType'] as String?,
       chartValues: ((json['chartValues'] as List<dynamic>?) ?? const [])
           .map((e) => (e as num).toDouble())
+          .toList(),
+      tareas: ((json['tareas'] as List<dynamic>?) ?? const [])
+          .map((e) => TaskDetailItem.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }

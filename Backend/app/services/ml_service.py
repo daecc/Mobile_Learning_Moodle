@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 import joblib
 import numpy as np
 from app.models import MetacognitiveStat
@@ -21,36 +21,127 @@ else:
     scaler = None
     features_list = []
 
-def calcular_nivel_riesgo(probabilidad: float) -> Tuple[str, str, str, str]:
+def calcular_nivel_riesgo(probabilidad: float, factores: Optional[Dict[str, Any]] = None) -> Tuple[str, str, str, str]:
     """
     Retorna (nivel, titulo_alerta, mensaje_alerta, accion_recomendada)
     acorde a los principios de diseño de Rumbo:
     - Verde (0 - 30%): Bajo
     - Amarillo (31 - 60%): Moderado
     - Rojo (61 - 100%): Crítico
+
+    Si se proporcionan 'factores' reales del estudiante, los mensajes y recomendaciones
+    se sintetizan de forma 100% dinámica explicando los motivos reales en Moodle.
     """
     pct = round(probabilidad * 100)
+
+    # 1. Determinar nivel base
     if pct <= 30:
-        return (
-            "BAJO",
-            "Vas por buen camino",
-            "Tus indicadores de interacción y rendimiento se mantienen estables. Continúa con este ritmo de estudio para asegurar el ciclo.",
-            "Mantén tu ritmo constante. Revisa las lecturas complementarias y participa en los foros para consolidar tus logros."
-        )
+        nivel = "BAJO"
     elif pct <= 60:
-        return (
-            "MODERADO",
-            "Atención requerida",
-            "Detectamos una leve disminución en tu frecuencia de ingresos y entregas recientes. Estás a tiempo de nivelar tu avance.",
-            "Planifica tus próximas 48 horas: repasa el último módulo práctico, entrega los ejercicios pendientes y resuelve las dudas con el docente."
-        )
+        nivel = "MODERADO"
     else:
-        return (
-            "CRITICO",
-            "Alerta temprana de riesgo académico",
-            "El modelo predictivo identificó una alta probabilidad de rezago debido a inactividad prolongada y evaluaciones recientes por debajo de la media.",
-            "Paso prioritario: Conéctate hoy a Moodle, revisa las tareas vencidas con opción de prórroga y solicita una tutoría académica inmediata."
-        )
+        nivel = "CRITICO"
+
+    # Si no hay factores específicos, usar plantillas institucionales por nivel
+    if not factores:
+        if nivel == "BAJO":
+            return (
+                "BAJO",
+                "Vas por buen camino",
+                "Tus indicadores de interacción y rendimiento se mantienen estables. Continúa con este ritmo de estudio para asegurar el ciclo.",
+                "Mantén tu ritmo constante. Revisa las lecturas complementarias y participa en los foros para consolidar tus logros."
+            )
+        elif nivel == "MODERADO":
+            return (
+                "MODERADO",
+                "Atención requerida",
+                "Detectamos una leve disminución en tu frecuencia de ingresos y entregas recientes. Estás a tiempo de nivelar tu avance.",
+                "Planifica tus próximas 48 horas: repasa el último módulo práctico, entrega los ejercicios pendientes y resuelve las dudas con el docente."
+            )
+        else:
+            return (
+                "CRITICO",
+                "Alerta temprana de riesgo académico",
+                "El modelo predictivo identificó una alta probabilidad de rezago debido a inactividad prolongada y evaluaciones recientes por debajo de la media.",
+                "Paso prioritario: Conéctate hoy a Moodle, revisa las tareas vencidas con opción de prórroga y solicita una tutoría académica inmediata."
+            )
+
+    # 2. Extracción de factores reales del estudiante
+    dias_inact = int(factores.get("dias_inactividad", 0))
+    prom = factores.get("promedio_calificaciones")
+    tiene_notas = bool(factores.get("tiene_calificaciones", True if prom is not None else False))
+    pending = int(factores.get("tareas_pendientes", 0))
+    total_tasks = int(factores.get("tareas_totales", 0))
+    dias_activos = int(factores.get("dias_activos", 0))
+    margen = float(factores.get("margen_entrega_horas", 24.0))
+
+    prom_bajo = tiene_notas and prom is not None and prom < 10.5
+    prom_medio = tiene_notas and prom is not None and 10.5 <= prom < 13.5
+    prom_alto = tiene_notas and prom is not None and prom >= 13.5
+
+    # 3. Generación dinámica según nivel y factores reales
+    if nivel == "CRITICO":
+        titulo = "Alerta temprana de riesgo académico"
+        if prom_bajo and pending > 0:
+            msg = f"El modelo identificó riesgo crítico debido a tu promedio en evaluaciones ({prom:.1f}/20) y {pending} tarea{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} en Moodle."
+            accion = f"Paso prioritario: Conéctate hoy a Moodle, revisa la{'s' if pending != 1 else ''} {pending} entrega{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} y solicita tutoría para reforzar los temas evaluados."
+        elif dias_inact > 3 and pending > 0:
+            msg = f"El modelo identificó riesgo crítico debido a {dias_inact} días sin ingresar al curso y {pending} tarea{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} de entrega."
+            accion = "Paso prioritario: Ingresa a MoodleCloud hoy mismo, ponte al día con las tareas y coordina con tu docente opciones de regularización."
+        elif prom_bajo and dias_inact > 3:
+            msg = f"Riesgo crítico detectado: Registras {dias_inact} días de inactividad y tu promedio en evaluaciones ({prom:.1f}/20) requiere recuperación urgente."
+            accion = "Paso prioritario: Conéctate hoy al curso, descarga los materiales de estudio y solicita una tutoría académica inmediata."
+        elif pending > 0:
+            vencida_str = " (incluyendo entregas vencidas)" if margen < 0 else ""
+            msg = f"El modelo identificó riesgo crítico principalmente por acumulación de {pending} tarea{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''}{vencida_str} en Moodle."
+            accion = f"Paso prioritario: Prioriza el envío de tu{'s' if pending != 1 else ''} {pending} tarea{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} y consulta con el docente o Tutor IA sobre prórrogas."
+        elif prom_bajo:
+            msg = f"El modelo identificó riesgo crítico debido a que tu promedio en evaluaciones ({prom:.1f}/20) se encuentra por debajo del umbral aprobatorio."
+            accion = "Paso prioritario: Revisa las rúbricas y soluciones de los cuestionarios previos y solicita una sesión de asesoría académica."
+        elif dias_inact > 4:
+            msg = f"El modelo identificó riesgo crítico debido a {dias_inact} días sin actividad registrada en la plataforma de estudio."
+            accion = "Paso prioritario: Conéctate de inmediato al curso en MoodleCloud y revisa las novedades y anuncios del docente."
+        else:
+            msg = f"El modelo predictivo identificó una alta probabilidad de rezago ({pct}%) debido a la combinación de factores de entrega y participación en el curso."
+            accion = "Paso prioritario: Conéctate hoy a Moodle, revisa tus avances y solicita una tutoría académica de acompañamiento."
+
+    elif nivel == "MODERADO":
+        titulo = "Atención requerida"
+        if pending > 0:
+            msg = f"Detectamos riesgo moderado: Tienes {pending} tarea{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} de entrega. Completarla{'s' if pending != 1 else ''} a tiempo te permitirá nivelar tu avance."
+            accion = f"Planifica tus próximas 48 horas: avanza con la{'s' if pending != 1 else ''} {pending} entrega{'s' if pending != 1 else ''} pendiente{'s' if pending != 1 else ''} y consulta dudas con tu docente."
+        elif dias_inact > 2:
+            msg = f"Detectamos una disminución en tu frecuencia: Llevas {dias_inact} días sin ingresar al curso. Conéctate para no rezagarte en los contenidos."
+            accion = "Dedica un espacio hoy para revisar las lecturas de la semana y verificar los anuncios publicados en Moodle."
+        elif prom_medio:
+            msg = f"Tu promedio actual en evaluaciones ({prom:.1f}/20) se encuentra en zona intermedia. Un refuerzo en los próximos cuestionarios mejorará tu estabilidad."
+            accion = "Planifica sesiones de repaso para las siguientes evaluaciones y consulta con el Tutor IA las dudas de los temas más difíciles."
+        elif dias_activos > 0 and dias_activos < 4:
+            msg = f"Registraste actividad en {dias_activos} día{'s' if dias_activos != 1 else ''} esta semana frente a la meta recomendada de 4 días. Mayor constancia reducirá tu riesgo."
+            accion = "Organiza tu horario semanal para ingresar de forma más regular y revisar el material progresivamente."
+        else:
+            msg = "Detectamos una leve disminución en tu frecuencia de ingresos y entregas recientes. Estás a tiempo de nivelar tu avance."
+            accion = "Planifica tus próximas 48 horas: repasa el último módulo práctico, entrega tus ejercicios y resuelve dudas con el docente."
+
+    else:  # BAJO
+        titulo = "Vas por buen camino"
+        if total_tasks > 0 and pending == 0 and prom_alto:
+            msg = f"Excelente desempeño: Tienes todas tus tareas entregadas al día y un sólido promedio en evaluaciones ({prom:.1f}/20). Continúa con este ritmo."
+            accion = "Mantén tu ritmo constante. Revisa las lecturas complementarias y apoya a tus compañeros en los foros de debate."
+        elif total_tasks > 0 and pending == 0:
+            msg = "Tus indicadores son muy positivos: Todas las tareas del curso han sido entregadas y mantienes un ritmo constante en Moodle."
+            accion = "Mantén esta puntualidad en tus entregas y anticipa la preparación para los siguientes módulos del curso."
+        elif prom_alto:
+            msg = f"Muy buen rendimiento: Tu promedio acumulado ({prom:.1f}/20) asegura un avance seguro en la asignatura."
+            accion = "Continúa participando en las actividades del curso para consolidar tu aprendizaje hasta el final del ciclo."
+        elif dias_activos >= 4:
+            msg = f"Gran constancia de estudio: Registraste {dias_activos} días activos esta semana en Moodle y tus indicadores se mantienen estables."
+            accion = "Mantén esta disciplina semanal para asegurar la comprensión de los temas y el éxito en tus evaluaciones."
+        else:
+            msg = "Tus indicadores de interacción y rendimiento se mantienen estables. Continúa con este ritmo de estudio para asegurar el ciclo."
+            accion = "Mantén tu ritmo constante. Revisa las lecturas complementarias y participa en los foros para consolidar tus logros."
+
+    return (nivel, titulo, msg, accion)
 
 def generar_metricas_metacognitivas(row: Dict[str, Any]) -> List[MetacognitiveStat]:
     """

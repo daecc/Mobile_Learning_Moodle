@@ -48,6 +48,14 @@ class StudentCoursesResponse(BaseModel):
     resumen_riesgo: RiskDistributionSummary
     cursos: List[CourseRiskSummary]
 
+class TaskItemModel(BaseModel):
+    id: int
+    nombre: str
+    estado: str  # "entregada" | "pendiente" | "vencida"
+    fecha_limite: Optional[str] = None
+    calificacion: Optional[str] = None
+    fecha_entrega: Optional[str] = None
+
 class RiskFactorModel(BaseModel):
     clave: str
     titulo: str
@@ -56,6 +64,7 @@ class RiskFactorModel(BaseModel):
     influencia: int = 1
     chartType: Optional[str] = None
     chartValues: List[float] = []
+    tareas: List[TaskItemModel] = []
 
 class FactoresBundleModel(BaseModel):
     periodo: str = "últimas semanas"

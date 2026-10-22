@@ -30,10 +30,10 @@ class QuizTrendChart extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
-                    '${v.toInt()}',
-                    style: const TextStyle(
+                    v.toDouble() % 1 != 0 ? v.toDouble().toStringAsFixed(1) : '${v.toInt()}',
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryOf(context),
                     ),
                   ),
                   const SizedBox(height: 3),

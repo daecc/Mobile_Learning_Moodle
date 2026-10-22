@@ -143,6 +143,7 @@ class _FactorsBody extends StatelessWidget {
                 factor: f,
                 color: AppColors.riskHigh,
                 chart: _chartFor(f),
+                courseName: detail.cleanNombreCurso,
               ),
             ),
           ),
@@ -155,6 +156,8 @@ class _FactorsBody extends StatelessWidget {
               child: _FactorCard(
                 factor: f,
                 color: AppColors.riskLow,
+                chart: _chartFor(f),
+                courseName: detail.cleanNombreCurso,
               ),
             ),
           ),
@@ -210,7 +213,10 @@ class _FactorsBody extends StatelessWidget {
   );
 }
 
-  Widget _chartFor(RiskFactor factor) {
+  Widget? _chartFor(RiskFactor factor) {
+    if (factor.chartValues.isEmpty || factor.chartType == 'none') {
+      return null;
+    }
     switch (factor.chartType) {
       case 'day_circles':
         return DayCirclesChart(values: factor.chartValues);
@@ -221,7 +227,7 @@ class _FactorsBody extends StatelessWidget {
       case 'weekly_logins':
         return WeeklyLoginsChart(values: factor.chartValues);
       default:
-        return const SizedBox.shrink();
+        return null;
     }
   }
 }
@@ -336,18 +342,360 @@ class _FactorCard extends StatelessWidget {
   final RiskFactor factor;
   final Color color;
   final Widget? chart;
+  final String courseName;
 
-  const _FactorCard({required this.factor, required this.color, this.chart});
+  const _FactorCard({
+    required this.factor,
+    required this.color,
+    this.chart,
+    this.courseName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bool hasTareas = factor.clave == 'tareas' && factor.tareas.isNotEmpty;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderOf(context)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: hasTareas ? () => _mostrarDetalleTareasModal(context, factor, courseName) : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        factor.titulo,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimaryOf(context),
+                        ),
+                      ),
+                    ),
+                    if (hasTareas)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 22,
+                        color: AppColors.textSecondaryOf(context),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 18),
+                  child: Text(
+                    factor.subtitulo,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ),
+                if (chart != null) ...[
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: chart!,
+                  ),
+                ],
+                if (hasTareas) ...[
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoftOf(context),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 14,
+                            color: AppColors.brand,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Ver detalle de cada tarea (${factor.tareas.length})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: AppColors.brand,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal Bottom Sheet moderno con el desglose de tareas, estados y calificaciones
+void _mostrarDetalleTareasModal(BuildContext context, RiskFactor factor, String courseName) {
+  final tareas = factor.tareas;
+  final entregadas = tareas.where((t) => t.estaEntregada).length;
+  final pendientes = tareas.where((t) => t.estaPendiente).length;
+  final vencidas = tareas.where((t) => t.estaVencida).length;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      final surfaceColor = AppColors.surfaceOf(ctx);
+      final textPrimary = AppColors.textPrimaryOf(ctx);
+      final textSecondary = AppColors.textSecondaryOf(ctx);
+      final borderColor = AppColors.borderOf(ctx);
+      final bgColor = AppColors.backgroundOf(ctx);
+
+      return Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+        ),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.20),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Indicador de arrastre superior
+              const SizedBox(height: 12),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Encabezado
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Detalle de Tareas',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            courseName.isNotEmpty ? courseName : 'Curso en Moodle',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, color: textSecondary),
+                      onPressed: () => Navigator.pop(ctx),
+                      tooltip: 'Cerrar',
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Badges de resumen rápido
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _ModalBadge(
+                      label: '$entregadas entregada${entregadas != 1 ? 's' : ''}',
+                      color: AppColors.riskLow,
+                      icon: Icons.check_circle_rounded,
+                    ),
+                    if (pendientes > 0) ...[
+                      const SizedBox(width: 8),
+                      _ModalBadge(
+                        label: '$pendientes pendiente${pendientes != 1 ? 's' : ''}',
+                        color: AppColors.riskMedium,
+                        icon: Icons.schedule_rounded,
+                      ),
+                    ],
+                    if (vencidas > 0) ...[
+                      const SizedBox(width: 8),
+                      _ModalBadge(
+                        label: '$vencidas vencida${vencidas != 1 ? 's' : ''}',
+                        color: AppColors.riskHigh,
+                        icon: Icons.warning_amber_rounded,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+              Divider(color: borderColor, height: 1),
+
+              // Lista de tareas
+              Flexible(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: tareas.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, index) {
+                    final t = tareas[index];
+                    return _TaskItemCard(
+                      task: t,
+                      bgColor: bgColor,
+                      borderColor: borderColor,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ModalBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  const _ModalBadge({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskItemCard extends StatelessWidget {
+  final TaskDetailItem task;
+  final Color bgColor;
+  final Color borderColor;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  const _TaskItemCard({
+    required this.task,
+    required this.bgColor,
+    required this.borderColor,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color statusColor;
+    final String statusLabel;
+    final IconData statusIcon;
+
+    if (task.estaEntregada) {
+      statusColor = AppColors.riskLow;
+      statusLabel = 'Entregada';
+      statusIcon = Icons.check_circle_rounded;
+    } else if (task.estaVencida) {
+      statusColor = AppColors.riskHigh;
+      statusLabel = 'Vencida';
+      statusIcon = Icons.warning_amber_rounded;
+    } else {
+      statusColor = AppColors.riskMedium;
+      statusLabel = 'Pendiente';
+      statusIcon = Icons.schedule_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,43 +703,115 @@ class _FactorCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
+              Icon(statusIcon, size: 18, color: statusColor),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  factor.titulo,
+                  task.nombre,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimaryOf(context),
+                    color: textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.only(left: 18),
-            child: Text(
-              factor.subtitulo,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondaryOf(context),
-              ),
+            padding: const EdgeInsets.only(left: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (task.fechaLimite != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_outlined, size: 13, color: textSecondary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Límite: ${task.fechaLimite}',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.fechaEntrega != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.upload_file_outlined, size: 13, color: AppColors.riskLow),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Entregado: ${task.fechaEntrega}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.riskLow),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.calificacion != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Calificación: ${task.calificacion}',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (task.estaEntregada)
+                  Row(
+                    children: [
+                      Icon(Icons.hourglass_top_rounded, size: 13, color: textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Calificación: Pendiente de corrección por docente',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (task.estaVencida)
+                  Row(
+                    children: [
+                      Icon(Icons.cancel_outlined, size: 13, color: AppColors.riskHigh),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Sin entrega registrada en Moodle',
+                        style: TextStyle(fontSize: 12, color: AppColors.riskHigh),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
-          if (chart != null) ...[
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.only(left: 18),
-              child: chart!,
-            ),
-          ],
         ],
       ),
     );
@@ -435,9 +855,20 @@ class _ReflectionCard extends StatelessWidget {
             runSpacing: 8,
             children: opciones.map((op) {
               return ActionChip(
-                label: Text(op),
-                backgroundColor: AppColors.neutralSoft,
+                label: Text(
+                  op,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                backgroundColor: AppColors.backgroundOf(context),
                 side: BorderSide(color: AppColors.borderOf(context)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

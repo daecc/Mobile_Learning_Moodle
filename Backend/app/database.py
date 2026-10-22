@@ -107,6 +107,17 @@ def init_db():
     );
     """)
 
+    # 5. Tabla Historial de Accesos por curso
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS historial_accesos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_estudiante TEXT NOT NULL,
+        id_curso TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        UNIQUE(id_estudiante, id_curso, timestamp)
+    );
+    """)
+
     conn.commit()
     conn.close()
 

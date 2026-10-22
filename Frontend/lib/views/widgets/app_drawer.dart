@@ -221,8 +221,8 @@ class AppDrawer extends StatelessWidget {
                     title: 'Tutor Inteligente',
                     isSelected: currentRoute == 'tutor',
                     badge: 'IA',
-                    badgeColor: AppColors.neutralSoft,
-                    badgeTextColor: AppColors.textPrimaryOf(context),
+                    badgeColor: AppColors.brandSoftOf(context),
+                    badgeTextColor: AppColors.brand,
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
@@ -377,17 +377,21 @@ class _CleanDrawerTile extends StatelessWidget {
         ),
         trailing: badge != null
             ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeColor ?? AppColors.brandSoftOf(context),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: (badgeTextColor ?? AppColors.brand).withOpacity(0.28),
+                  ),
                 ),
                 child: Text(
                   badge!,
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeTextColor ?? (badgeColor != null ? Colors.white : AppColors.brand),
+                    fontWeight: FontWeight.w800,
+                    color: badgeTextColor ?? AppColors.brand,
+                    letterSpacing: 0.5,
                   ),
                 ),
               )

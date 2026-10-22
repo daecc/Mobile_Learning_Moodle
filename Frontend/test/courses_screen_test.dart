@@ -135,4 +135,21 @@ void main() {
     expect(find.text('Reintentar conexión'), findsOneWidget);
     expect(find.text('Volver al login'), findsOneWidget);
   });
+
+  testWidgets('AppDrawer opens and renders IA badge for Tutor Inteligente in drawer', (tester) async {
+    final api = FakeApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final coursesVm = CoursesViewModel(apiService: api);
+
+    await tester.pumpWidget(createCoursesWidget(coursesVm, authVm));
+    await tester.pumpAndSettle();
+
+    // Open drawer by tapping menu button
+    await tester.tap(find.byIcon(Icons.menu_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify Tutor Inteligente and IA badge exist
+    expect(find.text('Tutor Inteligente'), findsOneWidget);
+    expect(find.text('IA'), findsOneWidget);
+  });
 }

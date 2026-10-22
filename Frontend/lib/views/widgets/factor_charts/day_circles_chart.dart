@@ -25,9 +25,13 @@ class DayCirclesChart extends StatelessWidget {
           height: 14,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? color : AppColors.neutralSoft,
+            color: active
+                ? color
+                : (Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E293B)
+                    : AppColors.neutralSoft),
             border: Border.all(
-              color: active ? color : AppColors.border,
+              color: active ? color : AppColors.borderOf(context),
             ),
           ),
         );
