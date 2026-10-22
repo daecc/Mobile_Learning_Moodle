@@ -6,10 +6,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
-import '../screens/gamification_screen.dart';
 import '../screens/login_screen.dart';
-import '../screens/metacognitive_screen.dart';
-import '../screens/tutor_screen.dart';
 
 /// Barra de navegación lateral (Drawer) rediseñada con estética móvil limpia y humana.
 class AppDrawer extends StatelessWidget {

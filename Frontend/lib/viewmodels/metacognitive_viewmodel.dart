@@ -46,6 +46,7 @@ class MetacognitiveViewModel extends ChangeNotifier {
 
   int get tareasTotales => _cursos.fold(0, (s, c) => s + c.tareasTotales);
   int get tareasEntregadas => _cursos.fold(0, (s, c) => s + c.tareasEntregadas);
+  int get tareasPendientes => _cursos.fold(0, (s, c) => s + c.tareasPendientes);
 
   /// Accesos semanales sumados de todos los cursos (índice a índice).
   /// Si los cursos reportan distinta cantidad de semanas, se alinean por el final.
