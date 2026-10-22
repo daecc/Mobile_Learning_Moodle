@@ -92,6 +92,9 @@ class AppColors {
   static Color brandSoftOf(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? brandSoftDark : brandSoft;
 
+  static Color brandOf(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF60A5FA) : brand;
+
   /// Devuelve el color principal asociado a un nivel de riesgo.
   static Color forLevel(String nivelRiesgo) {
     switch (nivelRiesgo.toUpperCase()) {

@@ -68,26 +68,25 @@ class LiquidGlassNavBar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _NavItem(
-                    icon: Icons.school_rounded,
+                    icon: Icons.auto_stories_rounded,
                     label: 'Asignaturas',
                     isSelected: currentIndex == 0,
                     onTap: () => onTap(0),
                   ),
                   _NavItem(
-                    icon: Icons.smart_toy_rounded,
+                    icon: Icons.forum_rounded,
                     label: 'Tutor IA',
                     isSelected: currentIndex == 1,
                     onTap: () => onTap(1),
-                    badgeText: 'IA',
                   ),
                   _NavItem(
-                    icon: Icons.insights_rounded,
+                    icon: Icons.bar_chart_rounded,
                     label: 'Métricas',
                     isSelected: currentIndex == 2,
                     onTap: () => onTap(2),
                   ),
                   _NavItem(
-                    icon: Icons.emoji_events_rounded,
+                    icon: Icons.workspace_premium_rounded,
                     label: 'Logros',
                     isSelected: currentIndex == 3,
                     onTap: () => onTap(3),
@@ -120,7 +119,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = AppColors.brand;
+    final activeColor = isDark ? const Color(0xFF60A5FA) : AppColors.brand;
     final inactiveColor = AppColors.textMutedOf(context);
 
     return InkWell(

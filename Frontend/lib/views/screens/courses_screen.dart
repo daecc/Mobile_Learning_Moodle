@@ -119,12 +119,14 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceOf(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -143,7 +145,7 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
               // Avatar grande del estudiante
               CircleAvatar(
                 radius: 36,
-                backgroundColor: AppColors.brand,
+                backgroundColor: AppColors.brandOf(context),
                 child: Text(
                   vm.iniciales,
                   style: const TextStyle(
@@ -219,7 +221,7 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
                     children: [
                       Icon(
                         themeVm.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        color: themeVm.isDarkMode ? Colors.amber : AppColors.brand,
+                        color: themeVm.isDarkMode ? Colors.amber : AppColors.brandOf(context),
                         size: 22,
                       ),
                       const SizedBox(width: 12),
@@ -247,40 +249,14 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
                       ),
                       Switch(
                         value: themeVm.isDarkMode,
-                        activeThumbColor: AppColors.brand,
+                        activeThumbColor: AppColors.brandOf(context),
                         onChanged: (_) => themeVm.toggleTheme(),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Botón de Cerrar Sesión en el perfil
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.riskHigh,
-                  side: const BorderSide(color: AppColors.riskHigh),
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _confirmarCerrarSesion(context);
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.logout_rounded, size: 18, color: AppColors.riskHigh),
-                    SizedBox(width: 8),
-                    Text(
-                      'Cerrar Sesión',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.riskHigh),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -532,19 +508,6 @@ class _LoadedState extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(width: 4),
-
-                    // Botón de Cerrar Sesión en Header
-                    IconButton(
-                      onPressed: onLogout,
-                      icon: const Icon(
-                        Icons.logout_rounded,
-                        color: Colors.white,
-                        size: 23,
-                      ),
-                      tooltip: 'Cerrar sesión',
                     ),
                   ],
                 ),

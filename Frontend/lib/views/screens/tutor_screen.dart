@@ -148,6 +148,7 @@ class _TutorScreenState extends State<TutorScreen> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // Selector de Curso (Filtro contextual)
@@ -187,7 +188,7 @@ class _TutorScreenState extends State<TutorScreen> {
             _InputBar(
               controller: _textController,
               isTyping: tutorVm.isTyping,
-              bottomPadding: widget.isTab ? 84.0 : 14.0,
+              bottomPadding: widget.isTab ? 92.0 : 14.0,
               onSend: () => _enviar(_textController.text),
             ),
           ],
@@ -210,6 +211,9 @@ class _CourseSelectorBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? const Color(0xFF60A5FA) : AppColors.brand;
+
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -227,27 +231,38 @@ class _CourseSelectorBar extends StatelessWidget {
               label: const Text('General / Todos'),
               selected: selectedCourseId == null,
               onSelected: (_) => onSelect(null, null),
-              selectedColor: AppColors.brandSoftOf(context),
+              selectedColor: isDark ? const Color(0xFF1E293B) : AppColors.brandSoftOf(context),
+              backgroundColor: AppColors.surfaceOf(context),
               labelStyle: TextStyle(
                 fontSize: 12,
                 fontWeight: selectedCourseId == null ? FontWeight.w800 : FontWeight.w500,
-                color: selectedCourseId == null ? AppColors.brand : AppColors.textSecondaryOf(context),
+                color: selectedCourseId == null ? activeColor : AppColors.textSecondaryOf(context),
               ),
             ),
           ),
           ...cursos.map((c) {
             final isSelected = c.idCurso == selectedCourseId;
+            final fullName = c.cleanNombreCurso;
+            String shortTitle = fullName;
+            if (fullName.contains('Software Móvil')) {
+              shortTitle = 'Software Móvil';
+            } else if (fullName.contains('Mantenimiento')) {
+              shortTitle = 'Mantenimiento';
+            } else if (shortTitle.length > 20) {
+              shortTitle = '${shortTitle.substring(0, 18)}...';
+            }
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(c.codigoCurso),
+                label: Text(shortTitle),
                 selected: isSelected,
                 onSelected: (_) => onSelect(c.idCurso, c.cleanNombreCurso),
-                selectedColor: AppColors.brandSoftOf(context),
+                selectedColor: isDark ? const Color(0xFF1E293B) : AppColors.brandSoftOf(context),
+                backgroundColor: AppColors.surfaceOf(context),
                 labelStyle: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  color: isSelected ? AppColors.brand : AppColors.textSecondaryOf(context),
+                  color: isSelected ? activeColor : AppColors.textSecondaryOf(context),
                 ),
               ),
             );
@@ -401,6 +416,9 @@ class _QuickSuggestions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final chipTextColor = isDark ? const Color(0xFF93C5FD) : AppColors.brand;
+
     return Container(
       height: 42,
       margin: const EdgeInsets.only(bottom: 6),
@@ -413,15 +431,19 @@ class _QuickSuggestions extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
-              backgroundColor: AppColors.surfaceOf(context),
-              side: BorderSide(color: AppColors.brand.withValues(alpha: 0.3)),
-              avatar: const Icon(Icons.help_outline_rounded, size: 14, color: AppColors.brand),
+              backgroundColor: isDark ? const Color(0xFF1E293B) : AppColors.surfaceOf(context),
+              side: BorderSide(
+                color: isDark
+                    ? const Color(0xFF3B82F6).withValues(alpha: 0.35)
+                    : AppColors.brand.withValues(alpha: 0.25),
+              ),
+              avatar: Icon(Icons.help_outline_rounded, size: 14, color: chipTextColor),
               label: Text(
                 sug,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.brand,
+                  color: chipTextColor,
                 ),
               ),
               onPressed: () => onSelect(sug),
@@ -448,6 +470,8 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: EdgeInsets.fromLTRB(14, 8, 14, bottomPadding),
       decoration: BoxDecoration(
@@ -458,39 +482,62 @@ class _InputBar extends StatelessWidget {
         children: [
           Expanded(
             child: Container(
+              height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.backgroundOf(context),
+                color: isDark ? const Color(0xFF1E293B) : AppColors.backgroundOf(context),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.borderOf(context)),
-              ),
-              child: TextField(
-                controller: controller,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimaryOf(context),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  width: 1.0,
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Pregunta a tu Tutor IA sobre tus cursos...',
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textMutedOf(context),
+              ),
+              child: Center(
+                child: TextField(
+                  controller: controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimaryOf(context),
                   ),
-                  border: InputBorder.none,
+                  decoration: InputDecoration(
+                    hintText: 'Pregunta a tu Tutor IA sobre tus cursos...',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMutedOf(context),
+                    ),
+                    isDense: true,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: isTyping ? null : onSend,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
+          Material(
+            color: isTyping
+                ? (isDark ? const Color(0xFF334155) : AppColors.neutralSoft)
+                : (isDark ? const Color(0xFF2563EB) : AppColors.brand),
+            shape: const CircleBorder(),
+            elevation: isTyping ? 0 : 1.5,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: isTyping ? null : onSend,
+              child: const SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: Icon(Icons.send_rounded, size: 19, color: Colors.white),
+                ),
+              ),
             ),
-            icon: const Icon(Icons.send_rounded, size: 18),
           ),
         ],
       ),

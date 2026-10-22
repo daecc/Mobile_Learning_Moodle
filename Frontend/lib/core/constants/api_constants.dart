@@ -22,5 +22,5 @@ class ApiConstants {
   static const String predictEndpoint = '/api/predict';
   static const String tutorEndpoint = '/api/tutor/chat';
 
-  static const Duration timeout = Duration(seconds: 15);
+  static const Duration timeout = Duration(seconds: 45);
 }

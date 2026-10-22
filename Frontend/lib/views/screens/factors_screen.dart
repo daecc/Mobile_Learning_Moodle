@@ -151,16 +151,16 @@ class _FactorsBody extends StatelessWidget {
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.brandSoftOf(context),
-                foregroundColor: AppColors.brand,
+                foregroundColor: AppColors.brandOf(context),
                 minimumSize: const Size.fromHeight(50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              icon: const Icon(Icons.smart_toy_outlined, size: 20),
-              label: const Text(
+              icon: Icon(Icons.smart_toy_outlined, size: 20, color: AppColors.brandOf(context)),
+              label: Text(
                 'Consultar plan de mejora con Tutor IA',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.brandOf(context)),
               ),
             ),
           ),
@@ -172,12 +172,14 @@ class _FactorsBody extends StatelessWidget {
               );
             },
             style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandOf(context),
+              foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Abrir curso en Moodle'),
+            child: const Text('Abrir curso en Moodle', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -408,10 +410,20 @@ class _ReflectionCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: opciones.map((op) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return ActionChip(
-                label: Text(op),
-                backgroundColor: AppColors.neutralSoft,
-                side: BorderSide(color: AppColors.borderOf(context)),
+                label: Text(
+                  op,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF93C5FD) : AppColors.brand,
+                  ),
+                ),
+                backgroundColor: isDark ? const Color(0xFF1E293B) : AppColors.surfaceOf(context),
+                side: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : AppColors.borderOf(context),
+                ),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -433,13 +445,20 @@ class _ReflectionCard extends StatelessWidget {
 class _CuestionarDatos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final brand = AppColors.brandOf(context);
+
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () => _mostrarDialogo(context),
-        icon: const Icon(Icons.help_outline, size: 18),
-        label: const Text('¿Algún dato no cuadra? Cuestionar datos de la IA'),
+        icon: Icon(Icons.help_outline, size: 18, color: brand),
+        label: Text(
+          '¿Algún dato no cuadra? Cuestionar datos de la IA',
+          style: TextStyle(fontWeight: FontWeight.w600, color: brand),
+        ),
         style: OutlinedButton.styleFrom(
+          foregroundColor: brand,
+          side: BorderSide(color: brand.withValues(alpha: 0.45)),
           minimumSize: const Size.fromHeight(50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -468,7 +487,7 @@ class _CuestionarDatos extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.borderOf(context),
+                    color: AppColors.borderOf(ctx),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -479,13 +498,13 @@ class _CuestionarDatos extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimaryOf(context),
+                  color: AppColors.textPrimaryOf(ctx),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Cuéntanos qué ves distinto y revisaremos la estimación con el servidor.',
-                style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondaryOf(ctx), fontSize: 13),
               ),
               const SizedBox(height: 16),
               const _MotivoOpcion('Ya entregué una tarea que figura pendiente'),
@@ -497,7 +516,7 @@ class _CuestionarDatos extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () => Navigator.of(ctx).pop(),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.brand,
+                    backgroundColor: AppColors.brandOf(ctx),
                     minimumSize: const Size.fromHeight(48),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),

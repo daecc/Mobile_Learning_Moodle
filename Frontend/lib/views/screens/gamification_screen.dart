@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
+import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/tutor_viewmodel.dart';
 
 /// Modelo de datos para representar un logro en la interfaz.
 class AchievementItem {
@@ -54,102 +56,120 @@ class GamificationScreen extends StatefulWidget {
 class _GamificationScreenState extends State<GamificationScreen> {
   String _selectedCategory = 'all'; // 'all', 'moodle', 'tutor', 'habits'
 
-  // Lista de logros académicos alineados con las estrategias del modelo
-  final List<AchievementItem> _allAchievements = const [
-    AchievementItem(
-      id: 'entrega_impecable',
-      title: 'Entrega Impecable',
-      description: 'Envía 5 tareas en Moodle antes de la fecha límite sin prórroga.',
-      category: 'moodle',
-      icon: Icons.check_circle_rounded,
-      iconColor: Color(0xFF10B981),
-      currentProgress: 5,
-      maxProgress: 5,
-      xpReward: 100,
-      isUnlocked: true,
-      dateUnlocked: 'Ayer',
-    ),
-    AchievementItem(
-      id: 'zona_segura',
-      title: 'Guardián del Rendimiento',
-      description: 'Mantén todos tus cursos matriculados en nivel de riesgo Bajo.',
-      category: 'habits',
-      icon: Icons.shield_rounded,
-      iconColor: Color(0xFF3B82F6),
-      currentProgress: 3,
-      maxProgress: 4,
-      xpReward: 150,
-      isUnlocked: false,
-    ),
-    AchievementItem(
-      id: 'curioso_digital',
-      title: 'Mente Inquisitiva',
-      description: 'Realiza 10 consultas reflexivas con el Tutor Inteligente IA.',
-      category: 'tutor',
-      icon: Icons.psychology_rounded,
-      iconColor: Color(0xFF8B5CF6),
-      currentProgress: 8,
-      maxProgress: 10,
-      xpReward: 120,
-      isUnlocked: false,
-    ),
-    AchievementItem(
-      id: 'racha_academica',
-      title: 'Racha de Campeón',
-      description: 'Ingresa a revisar tus materiales durante 7 días consecutivos.',
-      category: 'habits',
-      icon: Icons.local_fire_department_rounded,
-      iconColor: Color(0xFFF59E0B),
-      currentProgress: 5,
-      maxProgress: 7,
-      xpReward: 80,
-      isUnlocked: false,
-    ),
-    AchievementItem(
-      id: 'maestro_quiz',
-      title: 'As de los Cuestionarios',
-      description: 'Obtén calificación sobresaliente en 3 evaluaciones continuas.',
-      category: 'moodle',
-      icon: Icons.auto_awesome_rounded,
-      iconColor: Color(0xFFEC4899),
-      currentProgress: 3,
-      maxProgress: 3,
-      xpReward: 200,
-      isUnlocked: true,
-      dateUnlocked: '14 Oct',
-    ),
-    AchievementItem(
-      id: 'feedback_activo',
-      title: 'Estratega del Aprendizaje',
-      description: 'Revisa tus diagnósticos metacognitivos de riesgo cada semana.',
-      category: 'tutor',
-      icon: Icons.insights_rounded,
-      iconColor: Color(0xFF06B6D4),
-      currentProgress: 2,
-      maxProgress: 4,
-      xpReward: 90,
-      isUnlocked: false,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final themeVm = context.watch<ThemeViewModel>();
     final coursesVm = context.watch<CoursesViewModel>();
     final authStudent = context.watch<AuthViewModel>().student;
+    final metacognitiveVm = context.watch<MetacognitiveViewModel>();
+    final tutorVm = context.watch<TutorViewModel>();
 
     final studentName = authStudent?.nombre ?? coursesVm.studentName;
-    final totalCursos = coursesVm.courses.isNotEmpty ? coursesVm.courses.length : 4;
-    final safeCourses = coursesVm.summary.bajo;
+    final totalCursos = coursesVm.courses.isNotEmpty ? coursesVm.courses.length : 2;
+    final safeCourses = coursesVm.courses.where((c) => c.nivelRiesgo == 'BAJO').length;
+
+    // Métricas reales extraídas en vivo
+    final tareasTotales = metacognitiveVm.tareasTotales > 0 ? metacognitiveVm.tareasTotales : 5;
+    final tareasEntregadas = metacognitiveVm.tareasEntregadas;
+    final diasActivos = metacognitiveVm.accesosSemanales.isNotEmpty
+        ? metacognitiveVm.accesosSemanales.last.toInt()
+        : 1;
+    final tutorConsultas = tutorVm.mensajes.where((m) => m.esUsuario).length;
+
+    // Lista de logros académicos conectados a la realidad del estudiante
+    final allAchievements = [
+      AchievementItem(
+        id: 'entrega_impecable',
+        title: 'Entrega Impecable',
+        description: 'Envía todas tus tareas en Moodle antes de la fecha límite ($tareasEntregadas de $tareasTotales entregadas).',
+        category: 'moodle',
+        icon: Icons.check_circle_rounded,
+        iconColor: const Color(0xFF2563EB),
+        currentProgress: tareasEntregadas,
+        maxProgress: tareasTotales,
+        xpReward: 100,
+        isUnlocked: tareasEntregadas >= tareasTotales,
+        dateUnlocked: tareasEntregadas >= tareasTotales ? 'Completado' : null,
+      ),
+      AchievementItem(
+        id: 'zona_segura',
+        title: 'Guardián del Rendimiento',
+        description: 'Mantén todos tus cursos matriculados en nivel de riesgo Bajo ($safeCourses de $totalCursos seguros).',
+        category: 'habits',
+        icon: Icons.shield_rounded,
+        iconColor: const Color(0xFF2563EB),
+        currentProgress: safeCourses,
+        maxProgress: totalCursos,
+        xpReward: 150,
+        isUnlocked: safeCourses >= totalCursos && totalCursos > 0,
+        dateUnlocked: (safeCourses >= totalCursos && totalCursos > 0) ? 'Activo' : null,
+      ),
+      AchievementItem(
+        id: 'maestro_quiz',
+        title: 'As de los Cuestionarios',
+        description: 'Obtén calificación aprobatoria sólida en tus evaluaciones continuas.',
+        category: 'moodle',
+        icon: Icons.auto_awesome_rounded,
+        iconColor: const Color(0xFFD97706),
+        currentProgress: coursesVm.courses.any((c) => c.porcentajeRiesgo <= 30) ? 1 : 0,
+        maxProgress: 1,
+        xpReward: 120,
+        isUnlocked: coursesVm.courses.any((c) => c.porcentajeRiesgo <= 30),
+        dateUnlocked: 'Ciclo actual',
+      ),
+      AchievementItem(
+        id: 'racha_academica',
+        title: 'Constancia Semanal',
+        description: 'Cumple la meta recomendada de 4 días de actividad semanal en el aula virtual.',
+        category: 'habits',
+        icon: Icons.local_fire_department_rounded,
+        iconColor: const Color(0xFFD97706),
+        currentProgress: diasActivos.clamp(0, 4),
+        maxProgress: 4,
+        xpReward: 80,
+        isUnlocked: diasActivos >= 4,
+        dateUnlocked: diasActivos >= 4 ? 'Esta semana' : null,
+      ),
+      AchievementItem(
+        id: 'feedback_activo',
+        title: 'Estratega del Aprendizaje',
+        description: 'Revisa tus diagnósticos metacognitivos de riesgo cada semana.',
+        category: 'tutor',
+        icon: Icons.insights_rounded,
+        iconColor: const Color(0xFF2563EB),
+        currentProgress: coursesVm.courses.isNotEmpty ? 1 : 0,
+        maxProgress: 1,
+        xpReward: 90,
+        isUnlocked: coursesVm.courses.isNotEmpty,
+        dateUnlocked: coursesVm.courses.isNotEmpty ? 'Esta semana' : null,
+      ),
+      AchievementItem(
+        id: 'curioso_digital',
+        title: 'Mente Inquisitiva',
+        description: 'Realiza consultas reflexivas con el Tutor Inteligente IA.',
+        category: 'tutor',
+        icon: Icons.psychology_rounded,
+        iconColor: const Color(0xFF2563EB),
+        currentProgress: tutorConsultas.clamp(0, 3),
+        maxProgress: 3,
+        xpReward: 100,
+        isUnlocked: tutorConsultas >= 3,
+        dateUnlocked: tutorConsultas >= 3 ? 'Reciente' : null,
+      ),
+    ];
 
     final filteredAchievements = _selectedCategory == 'all'
-        ? _allAchievements
-        : _allAchievements.where((a) => a.category == _selectedCategory).toList();
+        ? allAchievements
+        : allAchievements.where((a) => a.category == _selectedCategory).toList();
 
-    final unlockedCount = _allAchievements.where((a) => a.isUnlocked).length;
-    final totalPoints = _allAchievements
-        .where((a) => a.isUnlocked)
-        .fold<int>(0, (acc, item) => acc + item.xpReward);
+    final unlockedCount = allAchievements.where((a) => a.isUnlocked).length;
+    final totalPoints = (tareasEntregadas * 50) +
+        (safeCourses * 100) +
+        allAchievements.where((a) => a.isUnlocked).fold<int>(0, (acc, item) => acc + item.xpReward);
+
+    final level = (totalPoints ~/ 200) + 1;
+    final currentXpInLevel = totalPoints % 200;
+    const targetXpInLevel = 200;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
@@ -165,7 +185,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
               context: context,
               themeVm: themeVm,
               studentName: studentName,
-              totalPoints: totalPoints + 80, // Base points
+              totalPoints: totalPoints,
+              level: level,
             ),
 
             // ==========================================
@@ -177,8 +198,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _buildQuickStatsCard(
                   context: context,
-                  rachaDias: 5,
-                  medallasDesbloqueadas: '$unlockedCount/${_allAchievements.length}',
+                  rachaDias: diasActivos,
+                  medallasDesbloqueadas: '$unlockedCount/${allAchievements.length}',
                   cursosSeguros: '$safeCourses/$totalCursos',
                 ),
               ),
@@ -189,7 +210,12 @@ class _GamificationScreenState extends State<GamificationScreen> {
             // ==========================================
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-              child: _buildLevelProgressCard(context, currentXp: 380, targetXp: 500, level: 4),
+              child: _buildLevelProgressCard(
+                context,
+                currentXp: currentXpInLevel,
+                targetXp: targetXpInLevel,
+                level: level,
+              ),
             ),
 
             // ==========================================
@@ -212,20 +238,20 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
+                      color: AppColors.brandOf(context).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.stars_rounded, size: 14, color: Colors.amber),
+                        Icon(Icons.workspace_premium_rounded, size: 14, color: AppColors.brandOf(context)),
                         const SizedBox(width: 4),
                         Text(
                           '$unlockedCount Obtenidos',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            color: Colors.amber,
+                            color: AppColors.brandOf(context),
                           ),
                         ),
                       ],
@@ -255,6 +281,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -267,7 +294,18 @@ class _GamificationScreenState extends State<GamificationScreen> {
     required ThemeViewModel themeVm,
     required String studentName,
     required int totalPoints,
+    required int level,
   }) {
+    final String rangoTexto;
+    if (level <= 1) {
+      rangoTexto = 'Rango: Explorador Inicial';
+    } else if (level == 2) {
+      rangoTexto = 'Rango: Estudiante Constante';
+    } else if (level == 3) {
+      rangoTexto = 'Rango: Estratega Académico';
+    } else {
+      rangoTexto = 'Rango: Estudiante Imparable';
+    }
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -365,7 +403,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                                 ),
                               ),
                               Text(
-                                'Estrategia 5 · Motivación & Retención',
+                                'Tus metas y reconocimientos académicos',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -418,7 +456,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                         ),
                       ),
                       child: Text(
-                        'Rango: Estudiante Imparable',
+                        rangoTexto,
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
@@ -437,65 +475,32 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  /// Slot preparado específicamente para renderizar tu animación Lottie de trofeo
+  /// Renderiza la animación Lottie del logro / trofeo
   Widget _buildLottieSlot() {
-    // Si tienes un archivo lottie listo (ej: 'assets/animations/trophy.json'),
-    // solo descomentas Lottie.asset y comentas el placeholder visual.
-    const String? lottieAssetPath = null; // Ej: 'assets/animations/trophy.json'
-
-    if (lottieAssetPath != null) {
-      return SizedBox(
-        height: 120,
-        width: 120,
-        child: Lottie.asset(
-          lottieAssetPath,
-          fit: BoxFit.contain,
-          repeat: true,
-        ),
-      );
-    }
-
-    // Placeholder estilizado con degradado y halo dorado hasta que agregues tu JSON Lottie
-    return Container(
-      width: 110,
-      height: 110,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            Colors.amber.withValues(alpha: 0.35),
-            Colors.amber.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.65, 1.0],
-        ),
-      ),
-      child: Center(
-        child: Container(
-          width: 82,
-          height: 82,
+    return SizedBox(
+      height: 120,
+      width: 120,
+      child: Lottie.asset(
+        'assets/animations/logros.json',
+        fit: BoxFit.contain,
+        repeat: true,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 96,
+          height: 96,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFD54F),
-                Color(0xFFFFA000),
-              ],
+            color: Colors.white.withValues(alpha: 0.12),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.25),
+              width: 1.5,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.amber.withValues(alpha: 0.4),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
-          child: const Icon(
-            Icons.emoji_events_rounded,
-            size: 46,
-            color: Colors.white,
+          child: const Center(
+            child: Icon(
+              Icons.workspace_premium_rounded,
+              size: 40,
+              color: Color(0xFFFDE68A),
+            ),
           ),
         ),
       ),
@@ -510,6 +515,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
     required String cursosSeguros,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brand = AppColors.brandOf(context);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -533,7 +539,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
           _buildQuickStatItem(
             context: context,
             icon: Icons.local_fire_department_rounded,
-            iconColor: const Color(0xFFF97316),
+            iconColor: const Color(0xFFD97706),
             title: '$rachaDias Días',
             subtitle: 'Racha Activa',
           ),
@@ -544,8 +550,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
           ),
           _buildQuickStatItem(
             context: context,
-            icon: Icons.military_tech_rounded,
-            iconColor: const Color(0xFFF59E0B),
+            icon: Icons.workspace_premium_rounded,
+            iconColor: brand,
             title: medallasDesbloqueadas,
             subtitle: 'Medallas',
           ),
@@ -557,7 +563,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
           _buildQuickStatItem(
             context: context,
             icon: Icons.shield_rounded,
-            iconColor: const Color(0xFF10B981),
+            iconColor: brand,
             title: cursosSeguros,
             subtitle: 'Zona Segura',
           ),
@@ -631,15 +637,15 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.brand.withValues(alpha: 0.12),
+                      color: AppColors.brandOf(context).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Nivel $level',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.brand,
+                        color: AppColors.brandOf(context),
                       ),
                     ),
                   ),
@@ -671,7 +677,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
               value: progress,
               minHeight: 9,
               backgroundColor: AppColors.borderOf(context),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandOf(context)),
             ),
           ),
           const SizedBox(height: 6),
@@ -714,7 +720,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   color: isSelected ? Colors.white : AppColors.textSecondaryOf(context),
                 ),
               ),
-              selectedColor: AppColors.brand,
+              selectedColor: AppColors.brandOf(context),
               backgroundColor: AppColors.surfaceOf(context),
               side: BorderSide(
                 color: isSelected ? Colors.transparent : AppColors.borderOf(context),
@@ -741,12 +747,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: item.isUnlocked
-              ? Colors.amber.withValues(alpha: isDark ? 0.35 : 0.4)
-              : AppColors.borderOf(context),
-          width: item.isUnlocked ? 1.5 : 1,
-        ),
+        border: Border.all(color: AppColors.borderOf(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
@@ -760,23 +761,20 @@ class _GamificationScreenState extends State<GamificationScreen> {
         children: [
           // Icono con insignia
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               color: item.isUnlocked
-                  ? item.iconColor.withValues(alpha: 0.16)
-                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: item.isUnlocked
-                    ? item.iconColor.withValues(alpha: 0.4)
-                    : Colors.transparent,
-              ),
+                  ? AppColors.brandOf(context).withValues(alpha: 0.10)
+                  : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               item.icon,
-              color: item.isUnlocked ? item.iconColor : AppColors.textMutedOf(context),
-              size: 26,
+              color: item.isUnlocked
+                  ? (item.id == 'racha_academica' ? const Color(0xFFD97706) : AppColors.brandOf(context))
+                  : AppColors.textMutedOf(context),
+              size: 24,
             ),
           ),
           const SizedBox(width: 14),
@@ -801,22 +799,25 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     ),
                     if (item.isUnlocked)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
+                          color: isDark
+                              ? const Color(0xFF064E3B).withValues(alpha: 0.35)
+                              : const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_rounded, size: 12, color: Colors.green),
-                            SizedBox(width: 4),
+                            Icon(Icons.check_rounded, size: 11, color: Color(0xFF059669)),
+                            SizedBox(width: 3),
                             Text(
-                              'LOGRADO',
+                              'Completado',
                               style: TextStyle(
                                 fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.green,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF059669),
+                                letterSpacing: 0.2,
                               ),
                             ),
                           ],
@@ -825,10 +826,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     else
                       Text(
                         '+${item.xpReward} XP',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.brand,
+                          color: AppColors.brandOf(context),
                         ),
                       ),
                   ],
@@ -855,7 +856,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                           minHeight: 6,
                           backgroundColor: AppColors.borderOf(context),
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            item.isUnlocked ? Colors.green : item.iconColor,
+                            item.isUnlocked ? const Color(0xFF059669) : AppColors.brandOf(context),
                           ),
                         ),
                       ),
