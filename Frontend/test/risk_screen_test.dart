@@ -8,11 +8,12 @@ import 'package:rumbo_app/viewmodels/auth_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/riesgo_viewmodel.dart';
 import 'package:rumbo_app/viewmodels/theme_viewmodel.dart';
 import 'package:rumbo_app/views/screens/risk_screen.dart';
+import 'package:rumbo_app/views/widgets/liquid_glass_nav_bar.dart';
 
 class FakeRiskApiService extends ApiService {
   @override
   Future<RiskDetailResponse> getCourseRiskDetail(
-      String studentId, String courseId) async {
+      String studentId, String courseId, {bool refresh = false}) async {
     return getDemoRiskDetail(studentId, courseId);
   }
 }
@@ -139,5 +140,25 @@ void main() {
     expect(find.text('Datos reunidos'), findsOneWidget);
     expect(find.text('Semana 1 de 2'), findsOneWidget);
     expect(find.text('Abrir curso en Moodle'), findsOneWidget);
+  });
+
+  testWidgets('RiskScreen renders LiquidGlassNavBar and keeps bottom menu visible', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final api = FakeRiskApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final riesgoVm = RiesgoViewModel(apiService: api);
+
+    await tester.pumpWidget(createRiskWidget(riesgoVm, authVm, 'CUR-004'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LiquidGlassNavBar), findsOneWidget);
+    expect(find.text('Asignaturas'), findsOneWidget);
+    expect(find.text('IA'), findsOneWidget);
   });
 }

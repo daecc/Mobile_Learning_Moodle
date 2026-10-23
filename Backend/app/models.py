@@ -124,3 +124,10 @@ class TutorChatResponse(BaseModel):
     sugerencias: List[str] = []
     curso_contexto: Optional[str] = None
     nivel_riesgo: Optional[str] = None
+
+class DiagnosticReviewsResponse(BaseModel):
+    id_estudiante: str
+    semana_lunes: str
+    cursos_revisados: List[str] = []
+    semanas_previas_completadas: int = 0
+

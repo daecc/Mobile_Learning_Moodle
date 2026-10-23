@@ -98,6 +98,43 @@ class StudentCoursesResponse {
   }
 }
 
+const Map<String, String> _knownCourseAccents = {
+  'CONSTRUCCION': 'Construcción',
+  'Construccion': 'Construcción',
+  'MOVIL': 'Móvil',
+  'Movil': 'Móvil',
+  'GARANTIA': 'Garantía',
+  'Garantia': 'Garantía',
+  'GESTION': 'Gestión',
+  'Gestion': 'Gestión',
+  'ANALITICA': 'Analítica',
+  'Analitica': 'Analítica',
+  'DISENO': 'Diseño',
+  'Diseno': 'Diseño',
+  'INGENIERIA': 'Ingeniería',
+  'Ingenieria': 'Ingeniería',
+  'METODOLOGIA': 'Metodología',
+  'Metodologia': 'Metodología',
+  'PROGRAMACION': 'Programación',
+  'Programacion': 'Programación',
+  'COMPUTACION': 'Computación',
+  'Computacion': 'Computación',
+  'ESTADISTICA': 'Estadística',
+  'Estadistica': 'Estadística',
+  'ADMINISTRACION': 'Administración',
+  'Administracion': 'Administración',
+  'FISICA': 'Física',
+  'Fisica': 'Física',
+  'QUIMICA': 'Química',
+  'Quimica': 'Química',
+  'LOGICA': 'Lógica',
+  'Logica': 'Lógica',
+  'ETICA': 'Ética',
+  'Etica': 'Ética',
+  'PRACTICA': 'Práctica',
+  'Practica': 'Práctica',
+};
+
 /// Transforma nombres crudos de Moodle (ej. "Curso202W0907-TALLER_DE_CONSTRUCCION_DE_SOFTWARE_MOVIL-2018-1_26.2")
 /// en títulos limpios y legibles para estudiantes (ej. "Taller de Construcción de Software Móvil").
 String formatCourseTitle(String raw) {
@@ -112,34 +149,53 @@ String formatCourseTitle(String raw) {
     }
   }
 
-  // 2. Eliminar códigos automáticos al inicio (Curso202W0907-, CUR-01, etc.)
-  name = name.replaceFirst(RegExp(r'^Curso[A-Za-z0-9_-]+[-_:]\s*', caseSensitive: false), '');
-  name = name.replaceFirst(RegExp(r'^(CUR|MAT|INF|SIS)[-_]\d+[-_:]\s*', caseSensitive: false), '');
+  // 2. Eliminar prefijo 'Curso' con su código (ej. 'Curso202W0907-', 'Curso-202W0907_')
+  // IMPORTANTE: [A-Za-z0-9] no debe incluir guiones ni guiones bajos para no consumir el nombre del curso.
+  name = name.replaceFirst(RegExp(r'^Curso[-_]?[A-Za-z0-9]+[-_:]\s*', caseSensitive: false), '');
 
-  // 3. Eliminar sufijos de ciclo o periodo (-2018-1_26.2, -2023-1, _26.2)
+  // 3. Eliminar códigos automáticos al inicio sin 'Curso' (ej. '202W0907-', '202W1001_', 'CUR-01-')
+  name = name.replaceFirst(RegExp(r'^(?:[A-Za-z0-9]{2,10}[-_])?\d+[A-Za-z0-9]*[-_:]\s*'), '');
+  name = name.replaceFirst(RegExp(r'^(?:CUR|MAT|INF|SIS|FIS|BIO|QUI|CS)[-_]\d+[-_:]\s*', caseSensitive: false), '');
+
+  // 4. Eliminar sufijos de ciclo o periodo (-2018-1_26.2, -2023-1, _26.2)
   name = name.replaceFirst(RegExp(r'[-_]\d{4}[-_]\d.*$'), '');
   name = name.replaceFirst(RegExp(r'[-_]\d+(\.\d+)?$'), '');
 
-  // 4. Reemplazar guiones bajos por espacios
+  // 5. Reemplazar guiones bajos por espacios y normalizar espacios múltiples
   name = name.replaceAll('_', ' ');
   name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-  // 5. Convertir MAYÚSCULAS sostenidas a Title Case humano
+  // 6. Convertir MAYÚSCULAS sostenidas a Title Case humano con acentuación correcta
   if (name.length > 2 && name == name.toUpperCase()) {
     final words = name.split(' ');
     final titledWords = words.map((w) {
       if (w.isEmpty) return '';
       final lower = w.toLowerCase();
+      final upper = w.toUpperCase();
       if (['de', 'del', 'la', 'las', 'el', 'los', 'en', 'y', 'para', 'con', 'a', 'o', 'por'].contains(lower)) {
         return lower;
       }
-      return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+      if (_knownCourseAccents.containsKey(upper)) {
+        return _knownCourseAccents[upper]!;
+      }
+      if (RegExp(r'^[A-Z]\d+$').hasMatch(w)) {
+        return w; // ej: G1, G2 (secciones o grupos)
+      }
+      if (w == '-') return '-';
+      return '${w[0].toUpperCase()}${lower.substring(1)}';
     }).toList();
 
     if (titledWords.isNotEmpty && titledWords.first.isNotEmpty) {
       titledWords[0] = '${titledWords[0][0].toUpperCase()}${titledWords[0].substring(1)}';
     }
     name = titledWords.join(' ');
+  } else {
+    // Si ya tiene minúsculas, restaurar tildes de palabras conocidas si faltan
+    final words = name.split(' ');
+    final restored = words.map((w) {
+      return _knownCourseAccents[w] ?? w;
+    }).toList();
+    name = restored.join(' ');
   }
 
   return name.isNotEmpty ? name : raw;

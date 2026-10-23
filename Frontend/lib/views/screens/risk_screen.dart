@@ -4,10 +4,14 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/risk_detail_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../data/services/sync_coordinator.dart';
+import '../widgets/liquid_glass_nav_bar.dart';
 import '../widgets/risk_gauge.dart';
 import 'factors_screen.dart';
+import 'main_navigation_screen.dart';
 import 'tutor_screen.dart';
 
 /// Panel de riesgo de un curso (tacómetro + alerta + siguiente paso).
@@ -41,6 +45,7 @@ class _RiskScreenState extends State<RiskScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
+      extendBody: true,
       appBar: AppBar(
         title: Text(
           'Diagnóstico de Riesgo',
@@ -65,11 +70,11 @@ class _RiskScreenState extends State<RiskScreen> {
             icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondaryOf(context)),
             tooltip: 'Recalcular diagnóstico',
             onPressed: () {
-              final authStudent = context.read<AuthViewModel>().student;
-              context.read<RiesgoViewModel>().loadDetail(
-                    widget.courseId,
-                    studentId: authStudent?.idEstudiante ?? 'EST-0001',
-                  );
+              AppSyncCoordinator.syncAll(
+                context,
+                activeCourseId: widget.courseId,
+                refreshMoodle: true,
+              );
             },
           ),
         ],
@@ -77,6 +82,10 @@ class _RiskScreenState extends State<RiskScreen> {
       body: detail == null
           ? const Center(child: CircularProgressIndicator())
           : _RiskBody(detail: detail),
+      bottomNavigationBar: LiquidGlassNavBar(
+        currentIndex: 0,
+        onTap: (index) => MainNavigationScreen.switchToTab(context, index),
+      ),
     );
   }
 }
@@ -106,8 +115,18 @@ class _EstimacionView extends StatelessWidget {
     final soft = AppColors.softForLevel(detail.nivelRiesgo);
     final esCritico = detail.nivelRiesgo == 'CRITICO';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+    return RefreshIndicator(
+      color: AppColors.brand,
+      onRefresh: () async {
+        await AppSyncCoordinator.syncAll(
+          context,
+          activeCourseId: detail.idCurso,
+          refreshMoodle: true,
+        );
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -194,11 +213,17 @@ class _EstimacionView extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => FactorsScreen(courseId: detail.idCurso),
-                    ),
-                  ),
+                  onPressed: () {
+                    try {
+                      final sId = context.read<AuthViewModel>().student?.idEstudiante;
+                      context.read<MetacognitiveViewModel>().registrarRevisionDiagnostico(detail.idCurso, studentId: sId);
+                    } catch (_) {}
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => FactorsScreen(courseId: detail.idCurso),
+                      ),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
@@ -243,8 +268,9 @@ class _EstimacionView extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   static void abrirMoodleModal(BuildContext context, String nombreCurso) {
     showModalBottomSheet(
@@ -453,7 +479,7 @@ class _SinEstimacionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

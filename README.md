@@ -1,348 +1,304 @@
 # Rumbo · Mobile Learning Moodle
 > **Sistema Inteligente de Analítica Predictiva y Prevención del Riesgo Académico en Moodle**  
-> *Facultad de Ingeniería de Sistemas e Informática (FISI) — UNMSM*
+> *Facultad de Ingeniería de Sistemas e Informática (FISI) — Universidad Nacional Mayor de San Marcos (UNMSM)*  
+> *Curso: Taller de Construcción de Software Móvil — Docente: Dr. Iván Carlo Petrlik Azabache*
 
 ---
 
 ## 📋 Tabla de Contenidos
 1. [Descripción General](#-descripción-general)
-2. [Estado Actual del Proyecto (Lo que ya está hecho)](#-estado-actual-del-proyecto-lo-que-ya-está-hecho)
-3. [Arquitectura del Sistema](#-arquitectura-del-sistema)
-   - [Patrón MVVM en Flutter](#a-patrón-mvvm-en-el-frontend-flutter)
-   - [Flujo de Datos de Inferencia ML](#b-flujo-de-datos-moodle--bd--ml--flutter)
-4. [Estructura del Repositorio](#-estructura-del-repositorio)
-5. [Base de Datos (`rumbo.db`)](#-base-de-datos-rumbodb)
-6. [Modelo de Machine Learning](#-modelo-de-machine-learning)
-7. [Guía de Instalación y Ejecución](#-guía-de-instalación-y-ejecución)
-   - [1. Backend (FastAPI)](#1-ejecutar-el-backend-fastapi)
-   - [2. Frontend (Flutter)](#2-ejecutar-el-frontend-flutter)
-8. [Ejecución de Pruebas Automatizadas](#-ejecución-de-pruebas-automatizadas)
-9. [Cuentas y Credenciales de Prueba](#-cuentas-y-credenciales-de-prueba)
-10. [Guía para el Equipo: ¿Cómo continuar el desarrollo?](#-guía-para-el-equipo-cómo-continuar-el-desarrollo)
+2. [Guía para Expositores: De Dónde Viene Qué y Cómo Funciona](#-guía-para-expositores-de-dónde-viene-qué-y-cómo-funciona)
+   - [El Flujo de Datos Completo (Moodle ➔ Backend ➔ ML ➔ Flutter)](#el-flujo-de-datos-completo)
+   - [¿De dónde saca Moodle la información?](#de-dónde-saca-moodle-la-información)
+   - [¿Cómo calcula la IA el riesgo y los factores?](#cómo-calcula-la-ia-el-riesgo-y-los-factores)
+   - [¿Cómo viaja y se muestra en la App Móvil?](#cómo-viaja-y-se-muestra-en-la-app-móvil)
+3. [Explicación Pantalla por Pantalla para la Demo](#-explicación-pantalla-por-pantalla-para-la-demo)
+4. [Alineación con las Guías de Laboratorio (`Teoria_usar`)](#-alineación-con-las-guías-de-laboratorio-teoria_usar)
+5. [Arquitectura del Sistema](#-arquitectura-del-sistema)
+   - [Frontend: Patrón MVVM en Flutter](#frontend-patrón-mvvm-en-flutter)
+   - [Backend: FastAPI y Microservicio Analítico](#backend-fastapi-y-microservicio-analítico)
+6. [Base de Datos Relacional (`rumbo.db`)](#-base-de-datos-relacional-rumbodb)
+7. [Modelo de Machine Learning y Explicabilidad XAI](#-modelo-de-machine-learning-y-explicabilidad-xai)
+8. [Gamificación: Sistema de 6 Rangos adaptado a 14 Semanas](#-gamificación-sistema-de-6-rangos-adaptado-a-14-semanas)
+9. [Persistencia Local con `SharedPreferences` (Lab 06)](#-persistencia-local-con-sharedpreferences-lab-06)
+10. [Guía de Instalación y Ejecución Rápida](#-guía-de-instalación-y-ejecución-rápida)
+11. [Cuentas y Credenciales para la Presentación](#-cuentas-y-credenciales-para-la-presentación)
+12. [Preguntas Típicas del Jurado/Profesor y Cómo Responder](#-preguntas-típicas-del-juradoprofesor-y-cómo-responder)
 
 ---
 
 ## 🎯 Descripción General
 
-**Rumbo** es una aplicación móvil diseñada bajo los lineamientos de **Mobile Learning** e **IA explicable (XAI)**. Se integra con aulas virtuales **Moodle** (MoodleCloud / Moodle institucional) para:
-1. Extraer en tiempo real las métricas de interacción del estudiante (accesos, tareas entregadas y pendientes, calificaciones históricas e inactividad).
-2. Procesar los indicadores mediante un modelo de **Machine Learning supervisado** (Regresión Logística / Random Forest) para predecir la probabilidad de riesgo de desaprobación o rezago.
-3. Proporcionar a los estudiantes alertas tempranas accionables, dashboards explicativos con gráficos visuales y herramientas de autorregulación metacognitiva.
+**RUMBO** es una plataforma móvil orientada a la **retención estudiantil y autorregulación del aprendizaje** en la educación superior. Se conecta directamente al aula virtual **Moodle LMS** (MoodleCloud / Moodle institucional) para:
+1. Extraer en tiempo real las métricas de interacción académica del estudiante (inactividad, entregas de tareas, notas de cuestionarios y frecuencia de acceso).
+2. Procesar estos indicadores mediante un modelo de **Machine Learning (Random Forest con explicabilidad SHAP)** para predecir oportunamente la probabilidad de riesgo de desaprobación o rezago.
+3. Brindar al estudiante alertas tempranas comprensibles, dashboards explicativos con gráficos visuales y herramientas metacognitivas con un sistema de gamificación progresivo.
 
 ---
 
-## 🚀 Estado Actual del Proyecto (Lo que ya está hecho)
+## 🧠 Guía para Expositores: De Dónde Viene Qué y Cómo Funciona
 
-Hasta el momento, el proyecto cumple con todos los requerimientos base solicitados:
+Esta sección está diseñada para que cualquier miembro del equipo que exponga el sábado entienda el ciclo de vida completo del sistema:
 
-### Frontend (Flutter)
-- ✅ **Patrón Arquitectural MVVM**: Separación estricta entre Modelos (`lib/data/models`), ViewModels con `ChangeNotifier` / `Provider` (`lib/viewmodels`) y Vistas (`lib/views`).
-- ✅ **Soporte de Tema Dual (Modo Claro & Modo Oscuro)**: Implementado en `ThemeViewModel` y `AppTheme`, con alternancia en tiempo real mediante botón en el Header y en el Menú Lateral.
-- ✅ **Menú Hamburguesa (`AppDrawer`)**: Drawer lateral deslizable con datos del estudiante autenticado, switch de tema oscuro, enlaces de navegación a los 4 módulos y botón de cierre de sesión.
-- ✅ **Pantallas Principales Consolidadas**:
-  - `LoginScreen`: Autenticación real contra Moodle y chips de acceso rápido con credenciales de prueba.
-  - `CoursesScreen`: Lista de cursos matriculados, cálculo visual de distribución de riesgo (Bajo, Moderado, Crítico) y pull-to-refresh.
-  - `RiskScreen`: Tacómetro semicircular (*RiskGauge*), rango de confianza basado en la Heurística H6 de Nielsen y acción correctiva inmediata recomendada.
-  - `FactorsScreen`: Pantalla de explicabilidad XAI con 4 gráficos interactivos (inactividad, tendencia de notas, línea de tiempo de tareas y accesos semanales).
-- ✅ **Pantallas Base Creadas (Placeholders)**:
-  - `MetacognitiveScreen`: Espacio para Estrategia 4 (control y autogestión del estudio).
-  - `TutorScreen`: Espacio para Asistente Inteligente IA.
-  - `GamificationScreen`: Espacio para Estrategia 5 (logros, medallas y rachas).
-- ✅ **12/12 Pruebas de Widgets y UI Pasando**: Cobertura en `Frontend/test/`.
-
-### Backend (FastAPI & Python)
-- ✅ **Integración con Moodle Web Services**: Servicio `moodle_service.py` que consume la REST API oficial de Moodle (`core_enrol_get_users_courses`, `mod_assign_get_assignments`, `gradereport_user_get_grade_items`).
-- ✅ **Persistencia en SQLite (`Backend/rumbo.db`)**: Base de datos relacional con 4 tablas (`estudiantes`, `cursos`, `metricas`, `predicciones`).
-- ✅ **Inferencia ML en Tiempo Real**: Carga del pipeline de Scikit-Learn (`model.joblib` + `scaler.joblib`) y generación de probabilidades y niveles de riesgo.
-- ✅ **Endpoints REST Documentados**: Disponibles en Swagger UI (`/docs`).
-- ✅ **5/5 Pruebas de Integración Pasando**: Script `test_api.py` que valida el flujo completo.
-
----
-
-## 🏗 Arquitectura del Sistema
-
-### A. Patrón MVVM en el Frontend (Flutter)
-
-```
-Frontend/lib/
-│
-├── data/
-│   ├── models/            # DTOs inmutables (StudentModel, CourseModel, RiskDetailModel)
-│   └── services/          # Consumo HTTP (ApiService) con fallback de contingencia
-│
-├── viewmodels/            # Lógica de presentación y estado (Provider)
-│   ├── auth_viewmodel.dart      # Gestión de login, sesión y logout
-│   ├── courses_viewmodel.dart   # Carga y filtrado de cursos
-│   ├── riesgo_viewmodel.dart    # Detalle de predicción y métricas del curso
-│   └── theme_viewmodel.dart     # Control reactivo del Modo Claro/Oscuro
-│
-└── views/                 # Interfaz gráfica reactiva
-    ├── screens/           # Pantallas completas
-    └── widgets/           # Tacómetro (Gauge), tarjetas, gráficos y AppDrawer
-```
-
-### B. Flujo de Datos: Moodle ➔ BD ➔ ML ➔ Flutter
+### El Flujo de Datos Completo
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Estudiante as App Móvil (Flutter)
-    participant API as FastAPI (Backend)
-    participant Moodle as MoodleCloud API
-    participant DB as SQLite (rumbo.db)
-    participant ML as Modelo Scikit-Learn
+    actor Estudiante as Estudiante (App Flutter)
+    participant Moodle as Aula Virtual Moodle LMS
+    participant Backend as FastAPI (Backend Python)
+    participant DB as SQLite WAL (rumbo.db)
+    participant ML as Pipeline Scikit-Learn (Random Forest + SHAP)
 
-    Estudiante->>API: POST /api/auth/login (usuario, pass)
-    API->>Moodle: Valida credenciales vía Web Service
-    Moodle-->>API: Token de sesión y moodle_userid
-    API->>DB: Guarda / actualiza estudiante
-    API-->>Estudiante: Token y perfil de usuario
+    Estudiante->>Backend: 1. POST /api/auth/login (codigo, password)
+    Backend->>Moodle: 2. /login/token.php (servicio: moodle_mobile_app)
+    Moodle-->>Backend: 3. Token de sesión oficial y moodle_userid
+    Backend->>Moodle: 4. Web Services: core_enrol_get_users_courses, mod_assign, gradereport
+    Moodle-->>Backend: 5. Retorna telemetría real (tareas, fechas, notas, accesos)
+    Backend->>Backend: 6. Computa vector de variables conductuales
+    Backend->>ML: 7. predict_proba(vector) + compute_shap_values()
+    ML-->>Backend: 8. Probabilidad (0..1), Nivel (Bajo/Mod/Crit) y Factores XAI
+    Backend->>DB: 9. Transacción atómica: guarda estudiantes, cursos, metricas y predicciones
+    Backend-->>Estudiante: 10. Responde JSON con perfil, cursos y semáforo de riesgo
+    Estudiante->>Estudiante: 11. ViewModels notifican y Flutter renderiza la UI reactiva
+```
 
-    Estudiante->>API: GET /api/estudiantes/{id}/cursos
-    API->>Moodle: Sincroniza cursos, notas y entregas
-    API->>DB: Almacena métricas extraídas
-    API->>ML: Pasa vector de 10 variables al modelo
-    ML-->>API: Probabilidad (0.0 a 1.0) y nivel de riesgo
-    API->>DB: Guarda predicción y explicabilidad
-    API-->>Estudiante: Lista de cursos con porcentaje y nivel de riesgo
+### ¿De dónde saca Moodle la información?
+- **Notas y Evaluaciones**: Se consultan a través de la API oficial `gradereport_user_get_grade_items`. De aquí se calculan el `promedio_historico`, el `promedio_quizzes` y la `tendencia_calificaciones` (Slope de notas).
+- **Tareas y Plazos**: Se obtienen con `mod_assign_get_assignments`. El backend revisa si la tarea está calificada, entregada o vencida, y computa el `margen_entrega_horas` (si el alumno entrega con días de anticipación o a última hora).
+- **Último Acceso e Inactividad**: Se extrae de `core_enrol_get_users_courses` (`lastaccess`). Si el alumno no ha entrado en 5 días, `dias_inactividad = 5`.
+- **Frecuencia Semanal**: Se contabilizan los días activos únicos en `historial_accesos`.
+
+### ¿Cómo calcula la IA el riesgo y los factores?
+1. **Vector de Características**: El backend toma las variables del alumno y las estandariza usando `StandardScaler` (`scaler.joblib`).
+2. **Clasificación**: El modelo `RandomForestClassifier` (`random_forest_model.pkl`) calcula la probabilidad exacta de riesgo ($P \in [0.0, 1.0]$).
+3. **Bandas de Decisión**:
+   - 🟢 **BAJO** (0% - 39%): Ritmo de estudio óptimo.
+   - 🟡 **MODERADO** (40% - 59%): Señales de alerta temprana que conviene atender.
+   - 🔴 **CRÍTICO** (60% - 100%): Alto riesgo de reprobar; se activa recomendación correctiva inmediata.
+4. **Explicabilidad con SHAP**: No es una "caja negra". SHAP desglosa qué variables **aumentan el riesgo** (ej: 1 tarea vencida, 8 días sin entrar) y cuáles **juegan a favor** (ej: promedio de 16 en cuestionarios). Esto genera los textos y gráficos de la pantalla de factores.
+
+### ¿Cómo viaja y se muestra en la App Móvil?
+1. El backend devuelve un contrato JSON tipado (`RiskDetailResponse`).
+2. En Flutter, [`ApiService`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/data/services/api_service.dart) deserializa el JSON en objetos Dart inmutables mediante constructores `fromJson`.
+3. Los ViewModels (`RiesgoViewModel`, `CoursesViewModel`) actualizan su estado interno y llaman a `notifyListeners()`.
+4. Los widgets suscritos (`Consumer`, `context.watch`) se redibujan de forma eficiente y fluida.
+
+---
+
+## 📱 Explicación Pantalla por Pantalla para la Demo
+
+Durante la presentación del sábado, sigan este recorrido en la app:
+
+| Pantalla | Qué Mostrar | Concepto Clave a Mencionar |
+| :--- | :--- | :--- |
+| **1. Login (`LoginScreen`)** | Mostrar los botones de acceso rápido (**Guillermo**, **Joseph** o **DEMO**). Al presionar uno, se autocompletan las credenciales. | Autenticación real contra Moodle Web Services + Soporte de Contingencia Offline. |
+| **2. Asignaturas (`CoursesScreen`)** | Mostrar la tarjeta de resumen superior (cuántos cursos en Bajo, Moderado o Crítico) y la lista de cursos ordenados con semáforo. | **Heurística de Nielsen (Visibilidad del estado)**. Pull-to-refresh para actualizar en vivo. |
+| **3. Porcentaje de Riesgo (`RiskScreen`)** | Tocar un curso (ej: *Patrones de Diseño* o *Garantía de Software*). Mostrar el tacómetro visual, el rango de confianza (ej: `78–91%`), el banner de alerta y la acción inmediata recomendada. | **Heurística H6 de Nielsen (Margen de incertidumbre)**. Menú inferior flotante (`LiquidGlassNavBar`) que sigue presente. |
+| **4. ¿Por qué este resultado? (`FactorsScreen`)** | Presionar el botón «¿Por qué este resultado?». Mostrar los 4 gráficos interactivos (círculos de días activos, tendencia de notas, línea de tiempo de tareas y accesos). Tocar una tarea para abrir el modal inferior de detalle. | **Inteligencia Artificial Explicable (XAI / SHAP)**. Se explica el motivo del cálculo en vez de dar un número ciego. |
+| **5. Gamificación (`GamificationScreen`)** | Tocar el icono de medalla en el menú inferior. Mostrar el nivel/rango actual del alumno (ej: *Aprendiz*, *Explorador*, *Estratega*), la barra de XP acumulable, el avatar con marco dinámico (`TierAvatar`) y las 5 misiones semanales. | **Diseño adaptado a 14 semanas**: los niveles y títulos nunca se pierden; los objetivos semanales se renuevan. |
+| **6. Tutor IA y Metacognición (`MetacognitiveScreen`)** | Mostrar las sugerencias pedagógicas y las herramientas de autogestión del estudio. | Autorregulación metacognitiva basada en Mobile Learning. |
+| **7. Menú Lateral (`AppDrawer`) y Tema** | Abrir el drawer lateral desde el botón superior. Mostrar el perfil del alumno, su insignia de rango y accionar el **Switch de Modo Oscuro / Modo Claro**. Cerrar y volver a abrir la app. | **Persistencia local con `SharedPreferences` (Laboratorio 06)**: el tema se recuerda en el dispositivo. |
+
+---
+
+## 📚 Alineación con las Guías de Laboratorio (`Teoria_usar`)
+
+Para demostrarle al profesor Dr. Iván Petrlik que se cubrió la totalidad del temario de su curso:
+
+| Sesión / Guía | Tema del Profesor | Implementación en Rumbo | Archivo en el Repositorio |
+| :--- | :--- | :--- | :--- |
+| **Sesión 3 PPTX** | Planificación Ágil Scrum | Historias de usuario, sprints de desarrollo y roles del Grupo 5. | [`Docs/InformacionSobreLaApp/`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/InformacionSobreLaApp/) |
+| **Sesión 3 Lab** | Widgets básicos, ListView, Tabs y Drawer | UI modular en Flutter, listas reactivas, Drawer de usuario y barra de pestañas. | [`app_drawer.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/views/widgets/app_drawer.dart), [`liquid_glass_nav_bar.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/views/widgets/liquid_glass_nav_bar.dart) |
+| **Sesión 4 Lab** | Consumo de API REST JSON (`http`) | Cliente HTTP en Dart con deserialización `fromJson` y modelos fuertemente tipados. | [`api_service.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/data/services/api_service.dart), [`course_model.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/data/models/course_model.dart) |
+| **Sesión 5 Lab** | Backend con **FastAPI** | Servidor ASGI con Uvicorn, rutas decoradas con `@app.get` y `@app.post`, esquemas Pydantic y Swagger. | [`Backend/main.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/main.py), [`Backend/app/routes/`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/routes/) |
+| **Sesión 6 Lab** | **SharedPreferences** (Persistencia Local) | Almacenamiento local de la preferencia de Modo Claro / Oscuro en disco sin bloquear la UI. | [`theme_viewmodel.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/viewmodels/theme_viewmodel.dart), [`theme_viewmodel_test.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/test/theme_viewmodel_test.dart) |
+| **Sesión 7 Lab** | Inteligencia Artificial y Despliegue en Render | Modelo de Machine Learning educativo (Random Forest + SHAP) y archivo de despliegue en la nube. | [`prediction_service.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/services/prediction_service.py), [`render.yaml`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/render.yaml) |
+| **Diseño Móvil PPTX**| Arquitectura MVVM, DI y **SQLite** Relacional | MVVM con Provider, inyección de fakes en 62 pruebas unitarias y SQLite con claves foráneas. | [`rumbo.db`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/rumbo.db), [`database.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/database.py) |
+
+---
+
+## 🏛 Arquitectura del Sistema
+
+> 📄 **Diagrama Visual HD y Documentación**: Consulta [`Docs/diagrama_arquitectura_app.png`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/diagrama_arquitectura_app.png) y [`Docs/ARQUITECTURA_DE_LA_APP.md`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/ARQUITECTURA_DE_LA_APP.md) para el diseño estructurado en 3 columnas (*Frontend Móvil*, *Backend y Motor ML*, *Servicios Externos y Almacenamiento*).
+
+### Frontend: Patrón MVVM en Flutter
+```
+Frontend/lib/
+├── core/theme/app_theme.dart             # Tokens de diseño, colores dinámicos (Light/Dark)
+├── data/
+│   ├── models/                           # DTOs inmutables (Student, Course, RiskDetail, Tier)
+│   └── services/                         # ApiService (REST) y SyncCoordinator (Offline sync)
+├── viewmodels/                           # Capa de Lógica de Presentación (ChangeNotifier)
+│   ├── auth_viewmodel.dart               # Autenticación, sesión y perfil
+│   ├── courses_viewmodel.dart            # Listado de cursos y semáforo de riesgo
+│   ├── riesgo_viewmodel.dart             # Tacómetro, Heurística H6 y métricas
+│   ├── metacognitive_viewmodel.dart      # Diagnósticos y revisión semanal
+│   ├── theme_viewmodel.dart              # Tema reactivo persistido con SharedPreferences
+│   └── tutor_viewmodel.dart              # Interacción con el Asistente IA
+└── views/
+    ├── screens/                          # Pantallas completas (Login, Courses, Risk, Factors, Gamification)
+    └── widgets/                          # LiquidGlassNavBar, AppDrawer, TierAvatar, Charts
+```
+
+### Backend: FastAPI y Microservicio Analítico
+```
+Backend/
+├── app/
+│   ├── routes/                           # Endpoints REST (auth.py, cursos.py, predict.py)
+│   ├── services/                         # moodle_service.py, prediction_service.py
+│   ├── database.py                       # Conexión SQLite WAL y esquema de 6 tablas
+│   ├── models.py                         # Esquemas de validación Pydantic v2
+│   └── main.py                           # Punto de entrada FastAPI con CORS
+├── ml_models/                            # Artefactos serializados (model.pkl, scaler.joblib)
+├── rumbo.db                              # Base de datos SQLite operativa
+├── test_api.py                           # Suite de pruebas automatizadas del Backend (5/5)
+└── requirements.txt                      # Dependencias de Python (fastapi, scikit-learn, etc.)
 ```
 
 ---
 
-## 📁 Estructura del Repositorio
+## 🗄 Base de Datos Relacional (`rumbo.db`)
 
-```text
-ProyectoMobileLV1.0/
-├── Backend/
-│   ├── app/
-│   │   ├── routes/
-│   │   │   ├── auth.py             # Endpoint de autenticación (/api/auth/login)
-│   │   │   ├── cursos.py           # Endpoints de cursos y riesgo (/api/estudiantes/...)
-│   │   │   └── predict.py          # Inferencia directa (/api/predict)
-│   │   ├── services/
-│   │   │   ├── data_service.py     # Acceso a datos de prueba
-│   │   │   ├── ml_service.py       # Carga de joblib, cálculo de nivel y textos XAI
-│   │   │   └── moodle_service.py   # Conexión oficial a Moodle Web Services REST
-│   │   ├── database.py             # Inicialización y conexiones a SQLite (rumbo.db)
-│   │   ├── main.py                 # Instancia de FastAPI, CORS y registro de routers
-│   │   └── models.py               # Esquemas Pydantic de entrada y salida
-│   ├── ml_models/
-│   │   ├── features.joblib         # Lista de nombres de las 10 variables predictoras
-│   │   ├── model.joblib            # Modelo entrenado (LogisticRegression)
-│   │   └── scaler.joblib           # StandardScaler ajustado para normalizar variables
-│   ├── rumbo.db                    # Base de datos SQLite local
-│   ├── requirements.txt            # Dependencias Python
-│   ├── run.py                      # Script para levantar el servidor
-│   ├── test_api.py                 # Suite de pruebas automatizadas del Backend (5 tests)
-│   └── test_moodle_service.py      # Diagnóstico directo con MoodleCloud
-│
-├── Frontend/
-│   ├── lib/
-│   │   ├── core/
-│   │   │   ├── constants/api_constants.dart  # URLs base y timeouts del Backend
-│   │   │   └── theme/app_theme.dart          # Paleta Rumbo (Light & Dark), tipografías
-│   │   ├── data/
-│   │   │   ├── models/                       # Modelos Dart (Student, Course, RiskDetail)
-│   │   │   └── services/api_service.dart     # Cliente HTTP con manejo de errores y fallback
-│   │   ├── viewmodels/                       # ViewModels (Auth, Courses, Riesgo, Theme)
-│   │   ├── views/
-│   │   │   ├── screens/                      # Pantallas principales y placeholders
-│   │   │   └── widgets/                      # Tacómetro Gauge, AppDrawer, Gráficos
-│   │   └── main.dart                         # Entry point con MultiProvider y MaterialApp
-│   ├── test/                                 # 12 pruebas de widgets y pantallas
-│   └── pubspec.yaml                          # Dependencias (provider, http, etc.)
-│
-├── Docs/                                     # Documentación académica y capturas
-└── Entrenamiento/                            # Jupyter Notebook con el entrenamiento del modelo
-```
+La base de datos local SQLite opera con **Write-Ahead Logging (`PRAGMA journal_mode = WAL;`)** y claves foráneas activadas (`PRAGMA foreign_keys = ON;`), asegurando concurrencia de lectura y transacciones ACID.
+
+Consiste en **6 tablas relacionales**:
+1. **`estudiantes`**: Perfil universitario, `username` de Moodle y token Web Service.
+2. **`cursos`**: Asignaturas matriculadas vinculadas a cada estudiante (`id_estudiante`).
+3. **`metricas`**: Telemetría extraída de Moodle (inactividad, tareas pendientes, promedio, slope de notas, margen de entrega, asistencia).
+4. **`predicciones`**: Resultado de inferencia de la IA (probabilidad, porcentaje, nivel de riesgo, rangos H6 de Nielsen y JSON explicativo de factores).
+5. **`historial_accesos`**: Marcas de tiempo de los accesos diarios para validar la misión de días activos.
+6. **`revisiones_diagnostico`**: Registro de revisiones semanales de diagnóstico (`semana_lunes`) para el logro *Estratega del Aprendizaje*.
+
+> 📄 **Documentación completa y diagrama visual**: Consulta [`Docs/DIAGRAMA_BASE_DE_DATOS.md`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/DIAGRAMA_BASE_DE_DATOS.md) y [`Docs/diagrama_er_base_de_datos.png`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/diagrama_er_base_de_datos.png).
 
 ---
 
-## 🗄 Base de Datos (`rumbo.db`)
+## 🤖 Modelo de Machine Learning y Explicabilidad XAI
 
-Ubicada en `Backend/rumbo.db`, es un SQLite que persiste la información operativa del sistema:
-
-1. **`estudiantes`**: Almacena `id_estudiante`, `username`, `nombre`, `correo`, `token_moodle`, `moodle_userid`.
-2. **`cursos`**: Asocia a los estudiantes con sus cursos de Moodle (`id_curso`, `moodle_id`, `nombre`, `codigo`, `docente`, `creditos`).
-3. **`metricas`**: Guarda las 10 variables extraídas de Moodle (`dias_inactividad`, `tareas_totales`, `tareas_pendientes`, `promedio_historico`, etc.).
-4. **`predicciones`**: Guarda el resultado de la inferencia (`probabilidad`, `porcentaje`, `nivel_riesgo`, `alerta_titulo`, `accion_recomendada`, `factores_json`).
+- **Algoritmo**: `RandomForestClassifier` supervisado + `StandardScaler`.
+- **Explicabilidad**: Valores SHAP (*SHapley Additive exPlanations*) que descomponen el riesgo en factores que aumentan la probabilidad (factores de riesgo) o la disminuyen (factores protectores).
+- **Entrenamiento**: Realizado con un dataset longitudinal de panel con 7,508 registros de interacción Moodle y validación cruzada.
+- **Inferencia en Tiempo Real**: El backend recibe el ID del alumno, obtiene sus métricas de Moodle/BD, genera la predicción en $< 50\text{ ms}$ y la retorna formateada a Flutter.
 
 ---
 
-## 🤖 Modelo de Machine Learning
+## 🎮 Gamificación: Sistema de 6 Rangos adaptado a 14 Semanas
 
-- **Algoritmo**: `LogisticRegression` (con `StandardScaler`).
-- **Ubicación de binarios**: `Backend/ml_models/`.
-- **Variables Predictoras (10 features)**:
-  1. `carga_academica_actual`: Número de créditos o asignaturas simultáneas.
-  2. `calificacion_historica_promedio`: Promedio ponderado acumulado (escala 0 a 20).
-  3. `tendencia_calificaciones`: Pendiente de cambio en las últimas notas (+ / -).
-  4. `tasa_acierto_primer_intento`: Porcentaje de éxito en cuestionarios iniciales.
-  5. `duracion_intento_minutos`: Tiempo promedio dedicado en plataforma por sesión.
-  6. `indice_friccion_cognitiva`: Errores repetidos o reintentos en evaluaciones.
-  7. `dias_inactividad_consecutivos`: Días transcurridos sin ingresar al curso.
-  8. `tasa_entregas_tardias`: Proporción de tareas subidas después de la fecha límite.
-  9. `nivel_interaccion_social`: Participación en foros y mensajes del aula.
-  10. `tasa_visualizacion_materiales`: Recursos y lecturas visualizadas del total.
+Diseñado pedagógicamente para un semestre académico estándar de **14 semanas**:
 
-- **Niveles de Riesgo**:
-  - 🟢 **BAJO** (0% - 30%): Ritmo estable.
-  - 🟡 **MODERADO** (31% - 60%): Disminución leve en ingresos o entregas; acción preventiva.
-  - 🔴 **CRÍTICO** (61% - 100%): Alto riesgo de desaprobación; recomendación de tutoría inmediata.
+| Rango | Nombre del Título | XP Acumulado Requerido | Distintivo / Cosmético |
+| :---: | :--- | :---: | :--- |
+| **Rango 1** | 🥉 **Novato del Aula** | 0 – 349 XP | Borde gris pizarra sutil |
+| **Rango 2** | 🥈 **Aprendiz Constante** | 350 – 799 XP | Borde azul cielo con brillo |
+| **Rango 3** | 🥇 **Explorador Académico** | 800 – 1,399 XP | Borde esmeralda vibrante |
+| **Rango 4** | 💎 **Estratega Digital** | 1,400 – 2,099 XP | Borde violeta real con sombra |
+| **Rango 5** | 👑 **Maestro del Aprendizaje** | 2,100 – 2,899 XP | Borde dorado ambarino |
+| **Rango 6** | 🌌 **Erudito Legendario** | 2,900+ XP | Borde gradiente arcoíris místico |
+
+### ¿Cómo funciona el reseteo semanal?
+- **El XP Total NUNCA se borra**: Los puntos de experiencia acumulados y el rango alcanzado son permanentes durante todo el ciclo.
+- **Las 5 Misiones Semanales se renuevan cada lunes**:
+  1. *Constancia Semanal* (100 XP): Entrar al menos 4 días diferentes a Moodle.
+  2. *Estratega del Aprendizaje* (120 XP): Revisar el diagnóstico «¿Por qué este resultado?» en todos los cursos.
+  3. *As de los Cuestionarios* (100 XP): Promedio $\ge 14.0$ en evaluaciones.
+  4. *Mente Inquisitiva* (80 XP): Realizar 3 consultas al Tutor IA.
+  5. *Entrega Impecable* (100 XP): Cero tareas vencidas en la semana.
 
 ---
 
-## 💻 Guía de Instalación y Ejecución
+## 💾 Persistencia Local con `SharedPreferences` (Lab 06)
 
-### 1. Ejecutar el Backend (FastAPI)
+En cumplimiento de la consigna del Laboratorio N° 06 (*«Implementar SharedPreferences en alguna parte del proyecto grupal y evidenciarlo»*):
+- Implementado en [`ThemeViewModel`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/viewmodels/theme_viewmodel.dart).
+- Almacena el valor booleano `app_theme_is_dark` en el almacenamiento local del dispositivo.
+- **Ventaja Técnica**: Cuando el estudiante cierra la aplicación o reinicia su celular, la app recuerda de inmediato su elección de Modo Claro o Modo Oscuro desde el arranque, sin consultar al servidor ni parpadear.
+- **Pruebas Automatizadas**: Verificado en [`theme_viewmodel_test.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/test/theme_viewmodel_test.dart).
 
-#### Requisitos:
-- Python 3.10 o superior instalado.
+---
 
-#### Pasos:
+## 💻 Guía de Instalación y Ejecución Rápida
+
+### 1. Levantar el Backend (FastAPI)
+Requiere Python 3.10 o superior:
 ```bash
-# 1. Navegar a la carpeta del backend
+# Entrar a la carpeta del backend
 cd Backend
 
-# 2. (Opcional pero recomendado) Crear y activar entorno virtual
-python -m venv venv
-# En Windows:
-.\venv\Scripts\activate
-# En Linux/macOS:
-source venv/bin/activate
+# Activar el entorno virtual
+.\venv\Scripts\activate      # En Windows
+# source venv/bin/activate   # En Linux / macOS
 
-# 3. Instalar dependencias
+# Instalar dependencias (si es primera vez)
 pip install -r requirements.txt
 
-# 4. Iniciar el servidor
-python run.py
+# Iniciar el servidor FastAPI con recarga en caliente
+uvicorn app.main:app --reload --port 8000
 ```
+- **API Activa:** `http://127.0.0.1:8000`
+- **Swagger UI (Documentación interactiva):** `http://127.0.0.1:8000/docs`
 
-- **Servidor activo en:** `http://127.0.0.1:8000`
-- **Swagger UI (Documentación interactiva de endpoints):** `http://127.0.0.1:8000/docs`
-
----
-
-### 2. Ejecutar el Frontend (Flutter)
-
-#### Requisitos:
-- Flutter SDK (versión 3.x o superior) instalado y configurado en el PATH.
-- Chrome, emulador de Android o soporte de Windows Desktop habilitado.
-
-#### Pasos:
+### 2. Levantar el Frontend (Flutter)
+Requiere Flutter SDK 3.x o superior:
 ```bash
-# 1. Navegar a la carpeta del frontend
+# Entrar a la carpeta del frontend
 cd Frontend
 
-# 2. Descargar las dependencias
+# Descargar paquetes
 flutter pub get
 
-# 3. Ejecutar la aplicación en la plataforma deseada:
-# En Chrome (Recomendado para pruebas rápidas):
+# Ejecutar en Google Chrome (Recomendado para la demo rápida)
 flutter run -d chrome
 
-# En Windows Desktop:
+# O en Windows Desktop / Emulador Android
 flutter run -d windows
-
-# En Emulador Android:
-flutter run -d android
 ```
 
-> **Nota para emuladores Android:** Si ejecutas la app en un emulador Android, recuerda que para conectar al backend local debes usar la IP `10.0.2.2:8000` en lugar de `127.0.0.1:8000` (configurado en `Frontend/lib/core/constants/api_constants.dart`).
-
----
-
-## 🧪 Ejecución de Pruebas Automatizadas
-
-### Pruebas del Backend (Python)
-Desde la carpeta `Backend/`:
+### 3. Ejecutar las Pruebas Automatizadas
 ```bash
-python test_api.py
-```
-*Ejecuta 5 pruebas: raíz, login real en Moodle, listado de cursos, detalle de riesgo con métricas XAI e inferencia ML directa.*
+# En Backend:
+python Backend/test_api.py      # Debe salir: TODAS LAS PRUEBAS PASARON (5/5)
 
-### Pruebas del Frontend (Flutter)
-Desde la carpeta `Frontend/`:
-```bash
-# Análisis estático (debe reportar 0 issues)
-flutter analyze
-
-# Suite completa de 12 tests de widgets y pantallas
-flutter test
+# En Frontend:
+flutter analyze                 # Debe salir: No issues found!
+flutter test                    # Debe salir: 62/62 All tests passed!
 ```
 
 ---
 
-## 🔑 Cuentas y Credenciales de Prueba
+## 🔑 Cuentas y Credenciales para la Presentación
 
-En la pantalla de Login (`LoginScreen`) se encuentran botones de acceso rápido para demostración:
+En la pantalla de Login, encontrarán los botones de autocompletado rápido:
 
-| Usuario | Contraseña | Rol / Descripción | Cursos Asignados en Moodle |
+| Cuenta / Botón | Código | Contraseña | Rol / Utilidad para la Exposición |
 | :--- | :--- | :--- | :--- |
-| **`guillermo1234`** | `Base22SW42` | **Estudiante Oficial (UNMSM FISI)** | 3 cursos reales sincronizados con MoodleCloud |
-| **`josephr.c27`** | `Base22SW41` | **Estudiante Oficial (UNMSM FISI)** | 2 cursos reales sincronizados con MoodleCloud |
-| **`DEMO`** | `demo123` | **Modo Demostración Offline** | Datos simulados para pruebas sin internet |
-
-### Los 3 cursos reales de prueba son:
-1. `Curso202W0907-TALLER_DE_CONSTRUCCION_DE_SOFTWARE_MOVIL-2018-1_26.2`
-2. `GARANTIA DE SOFTWARE - G1`
-3. `GESTION DE MANTENIMIENTO DEL SOFTWARE - G1`
+| **`guillermo1234`** | `guillermo1234` | `Base22SW42` | **Estudiante Oficial MoodleCloud (UNMSM FISI)**.<br>Tiene 3 cursos reales con riesgo Crítico y Bajo para mostrar la semaforización en vivo. |
+| **`josephr.c27`** | `josephr.c27` | `Base22SW41` | **Estudiante Oficial MoodleCloud (UNMSM FISI)**.<br>Tiene 2 cursos reales matriculados. |
+| **`DEMO`** | `DEMO` | `demo123` | **Modo de Contingencia Offline**.<br>Carga datos de simulación completos si la conexión a internet de la sala fallara. |
 
 ---
 
-## 👥 Guía para el Equipo: ¿Cómo continuar el desarrollo?
+## ❓ Preguntas Típicas del Jurado/Profesor y Cómo Responder
 
-Si eres compañero de equipo y te toca implementar nuevas funcionalidades, aquí tienes el mapa de ruta:
+Para estar 100% preparados ante las preguntas del Dr. Petrlik o los jurados:
 
-### 1. Dónde implementar las nuevas pantallas
-El menú lateral (`AppDrawer`) ya contiene los botones y la navegación hacia estas tres pantallas que están creadas como plantillas limpias:
+#### 1. «¿Por qué usaron MVVM en Flutter en lugar de MVC tradicional?»
+> *"Profesor, elegimos **MVVM con Provider** porque en Flutter la interfaz de usuario es declarativa. El ViewModel encapsula el estado y las reglas de presentación mediante `ChangeNotifier`, exponiendo datos observables. Esto desacopla totalmente las pantallas (`Views`) de la capa de red (`ApiService`), permitiéndonos probar la lógica visual mediante 62 pruebas unitarias con dependencias simuladas (`FakeApi`), exactamente como se explica en la Diapositiva 10 de su clase de Diseño Móvil."*
 
-1. **Control Metacognitivo** (`Frontend/lib/views/screens/metacognitive_screen.dart`):
-   - **Objetivo**: Ayudar al estudiante a autorregular su aprendizaje (Estrategia 4).
-   - **Qué construir**: Métricas de horas dedicadas, planificación de horarios, metas semanales de estudio y hábitos de autoevaluación.
-2. **Tutor Inteligente IA** (`Frontend/lib/views/screens/tutor_screen.dart`):
-   - **Objetivo**: Asistente conversacional inteligente.
-   - **Qué construir**: Interfaz de chat interactiva que permita al alumno preguntar sobre dudas de los temas del curso o recomendaciones de estudio personalizadas.
-3. **Gamificación y Logros** (`Frontend/lib/views/screens/gamification_screen.dart`):
-   - **Objetivo**: Fomentar la permanencia y motivación (Estrategia 5).
-   - **Qué construir**: Insignias (Badges), rachas de días seguidos ingresando a Moodle, puntos por entregar tareas con anticipación y niveles de progreso.
+#### 2. «En la Guía 7 se usaba Flask, ¿por qué en su backend tienen FastAPI?»
+> *"Profesor, en la Guía 5 aprendimos **FastAPI** con Uvicorn, y decidimos adoptarlo como un sustituto superior a Flask para nuestro proyecto final porque ofrece tipado estricto con Pydantic v2, generación automática de documentación Swagger interactiva (`/docs`), soporte nativo asíncrono y un rendimiento significativamente mayor para atender peticiones concurrentes del cliente móvil."*
 
-### 2. Cómo agregar un nuevo ViewModel (siguiendo MVVM)
-1. Crea tu archivo en `Frontend/lib/viewmodels/nombre_viewmodel.dart`.
-2. Hereda de `ChangeNotifier`:
-   ```dart
-   class MiViewModel extends ChangeNotifier {
-     bool _isLoading = false;
-     bool get isLoading => _isLoading;
-     // ... tus estados y métodos con notifyListeners();
-   }
-   ```
-3. Regístralo en el `MultiProvider` de `Frontend/lib/main.dart`:
-   ```dart
-   ChangeNotifierProvider(create: (_) => MiViewModel()),
-   ```
-4. Consúmelo en tu pantalla con `context.watch<MiViewModel>()` o `context.read<MiViewModel>()`.
+#### 3. «¿Dónde y cómo evidencian el uso de SharedPreferences del Laboratorio 06?»
+> *"Lo implementamos en el [`ThemeViewModel`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/viewmodels/theme_viewmodel.dart) para persistir la preferencia de Modo Claro / Modo Oscuro en el almacenamiento local del dispositivo. Cuando el alumno abre la app, se lee inmediatamente el booleano `app_theme_is_dark` de `SharedPreferences`, logrando que la interfaz cargue en el modo correcto sin consultar al servidor. Lo tenemos respaldado con pruebas en [`theme_viewmodel_test.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/test/theme_viewmodel_test.dart)."*
 
-### 3. Reglas de Diseño y Estilos (Dark / Light Mode)
-- **Nunca quemes colores fijos como `Colors.white` o `Colors.black` en fondos o textos.**
-- Utiliza siempre los helpers dinámicos de `AppColors`:
-  - `AppColors.backgroundOf(context)` (Fondo de pantalla)
-  - `AppColors.surfaceOf(context)` (Fondo de tarjetas y contenedores)
-  - `AppColors.textPrimaryOf(context)` (Texto principal)
-  - `AppColors.textSecondaryOf(context)` (Subtítulos y descripciones)
-  - `AppColors.borderOf(context)` (Bordes de inputs y tarjetas)
+#### 4. «¿Cómo funciona la explicabilidad de la IA? ¿Por qué no mostrar solo el porcentaje?»
+> *"Un porcentaje aislado de riesgo no le dice al estudiante qué debe hacer para mejorar. Siguiendo los principios de **XAI (Inteligencia Artificial Explicable)** y la **Heurística H6 de Jakob Nielsen**, implementamos un tacómetro con margen de incertidumbre y calculamos valores **SHAP** que desglosan exactamente qué factores suman riesgo (ej: inactividad de 8 días o tareas pendientes) y qué factores juegan a favor (ej: buen promedio en cuestionarios), ofreciendo una recomendación correctiva inmediata."*
 
-### 4. Buenas Prácticas de Git antes de subir tus cambios
-Antes de hacer commit y push a la rama `main`:
-```bash
-# 1. Asegúrate de que no haya errores de compilación o linter
-flutter analyze
+#### 5. «¿Cómo se resetean los puntos de gamificación entre semanas?»
+> *"Los puntos de experiencia totales acumulados y los títulos de rango nunca se resetean; reflejan el progreso acumulado durante las 14 semanas del ciclo. Lo que se renueva cada semana son las **5 misiones de autorregulación** (como constancia de 4 días de ingreso o revisión de diagnósticos), fomentando la disciplina continua a lo largo del semestre."*
 
-# 2. Asegúrate de que todos los tests sigan pasando
-flutter test
+---
 
-# 3. Si todo está en verde, sube tus cambios:
-git add .
-git commit -m "feat(modulo): descripción clara de lo implementado"
-git push origin main
-```
+### ¡Mucho éxito en la exposición del sábado, equipo! 🚀
+Cualquier consulta técnica adicional, revisen los archivos en [`Docs/`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/) y los tests en [`Frontend/test/`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/test/).

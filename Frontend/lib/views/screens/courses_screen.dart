@@ -4,12 +4,18 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/course_model.dart';
+import '../../data/models/gamification_tier.dart';
 import '../../main.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
+import '../../viewmodels/metacognitive_viewmodel.dart';
+import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/tutor_viewmodel.dart';
+import '../../data/services/sync_coordinator.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/course_card.dart';
+import '../widgets/tier_avatar.dart';
 import 'login_screen.dart';
 import 'risk_screen.dart';
 
@@ -56,6 +62,12 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
       setState(() {
         _lottieKey = UniqueKey();
       });
+      // Sincroniza de inmediato con SQLite para reflejar cualquier cambio de porcentaje
+      final authStudent = context.read<AuthViewModel>().student;
+      context.read<CoursesViewModel>().loadCourses(
+            studentId: authStudent?.idEstudiante,
+            refresh: false,
+          );
     }
   }
 
@@ -102,6 +114,10 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
             onPressed: () {
               Navigator.of(ctx).pop();
               context.read<AuthViewModel>().logout();
+              context.read<CoursesViewModel>().clear();
+              context.read<MetacognitiveViewModel>().clear();
+              context.read<RiesgoViewModel>().clear();
+              context.read<TutorViewModel>().clear();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
@@ -116,6 +132,56 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
 
   void _mostrarPerfil(BuildContext context, CoursesViewModel vm) {
     final authStudent = context.read<AuthViewModel>().student;
+
+    MetacognitiveViewModel? metacognitiveVm;
+    try {
+      metacognitiveVm = context.read<MetacognitiveViewModel>();
+    } catch (_) {}
+
+    TutorViewModel? tutorVm;
+    try {
+      tutorVm = context.read<TutorViewModel>();
+    } catch (_) {}
+
+    final safeCourses = vm.courses.where((c) => c.nivelRiesgo == 'BAJO').length;
+    final totalCursos = vm.courses.length;
+    final tareasTotales = metacognitiveVm?.tareasTotales ?? 0;
+    final tareasEntregadas = metacognitiveVm?.tareasEntregadas ?? 0;
+    final diasActivos = metacognitiveVm?.diasActivosSemanales ?? 0;
+    final tutorConsultas = tutorVm?.mensajes.where((m) => m.esUsuario).length ?? 0;
+    final cursosRevisadosCount = metacognitiveVm?.cursosRevisadosEstaSemana.length ?? 0;
+    final esEstratega = totalCursos > 0 && cursosRevisadosCount >= totalCursos;
+
+    double sumaNotasPonderadas = 0.0;
+    int sumaCreditosConNota = 0;
+    if (metacognitiveVm != null) {
+      for (final c in metacognitiveVm.cursos) {
+        final prom = c.metricas.where((m) => m.clave == 'promedio').firstOrNull;
+        if (prom == null || prom.valor == 'Sin notas') continue;
+        final nota = double.tryParse(prom.valor);
+        if (nota != null) {
+          final creditos = c.curso.creditos > 0 ? c.curso.creditos : 4;
+          sumaNotasPonderadas += nota * creditos;
+          sumaCreditosConNota += creditos;
+        }
+      }
+    }
+    final tieneBuenPromedio = sumaCreditosConNota > 0 &&
+        (sumaNotasPonderadas / sumaCreditosConNota) >= 14.0;
+
+    final pointsSummary = GamificationPointsSummary.calculate(
+      tareasEntregadas: tareasEntregadas,
+      safeCourses: safeCourses,
+      totalCursos: totalCursos,
+      tareasTotales: tareasTotales,
+      tieneBuenPromedio: tieneBuenPromedio,
+      diasActivosSemanales: diasActivos,
+      esEstrategaEstaSemana: esEstratega,
+      semanasPreviasEstratega: metacognitiveVm?.semanasPreviasEstratega ?? 0,
+      semanasPreviasConstancia: metacognitiveVm?.semanasPreviasConstancia ?? 0,
+      tutorConsultas: tutorConsultas,
+    );
+    final tier = pointsSummary.tier;
 
     showModalBottomSheet(
       context: context,
@@ -142,18 +208,12 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
               ),
               const SizedBox(height: 18),
 
-              // Avatar grande del estudiante
-              CircleAvatar(
+              // Avatar con marco cosmético dinámico y distintivo de Rango
+              TierAvatar(
+                initials: vm.iniciales,
+                tier: tier,
                 radius: 36,
-                backgroundColor: AppColors.brandOf(context),
-                child: Text(
-                  vm.iniciales,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 24,
-                  ),
-                ),
+                showBadge: true,
               ),
               const SizedBox(height: 12),
 
@@ -171,7 +231,73 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
                 authStudent?.email ?? '${vm.studentId.toLowerCase()}@unmsm.edu.pe',
                 style: TextStyle(fontSize: 13, color: AppColors.textMutedOf(context)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Tarjeta de Puntos Rumbo y Progreso de Rango
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundOf(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderOf(context)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.workspace_premium_rounded, size: 18, color: tier.primaryColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${pointsSummary.totalPoints} Puntos Rumbo',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          tier.level < 6
+                              ? 'Faltan ${pointsSummary.xpRemaining} XP'
+                              : 'Rango Máximo',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: tier.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: pointsSummary.progressInTier,
+                        minHeight: 7,
+                        backgroundColor: AppColors.borderOf(context),
+                        valueColor: AlwaysStoppedAnimation<Color>(tier.primaryColor),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        tier.subtitle,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.textMutedOf(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
 
               // Tarjeta informativa institucional
               Container(
@@ -256,6 +382,34 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Botón de Cerrar Sesión en el modal de perfil
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.riskHigh,
+                    side: const BorderSide(color: AppColors.riskHigh, width: 1.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout_rounded, size: 20),
+                  label: const Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _confirmarCerrarSesion(context);
+                  },
+                ),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -289,22 +443,21 @@ class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
           CoursesStatus.empty => _EmptyState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
           CoursesStatus.error => _ErrorState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
           CoursesStatus.loaded => RefreshIndicator(
               color: AppColors.brand,
               onRefresh: () async {
-                final authStudent = context.read<AuthViewModel>().student;
-                await vm.loadCourses(studentId: authStudent?.idEstudiante);
+                await AppSyncCoordinator.syncAll(context, refreshMoodle: true);
                 _replayLottie();
               },
               child: _LoadedState(

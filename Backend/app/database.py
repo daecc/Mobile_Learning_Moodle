@@ -118,6 +118,18 @@ def init_db():
     );
     """)
 
+    # 6. Tabla Revisiones de Diagnóstico Metacognitivo ("Estratega del Aprendizaje")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS revisiones_diagnostico (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_estudiante TEXT NOT NULL,
+        id_curso TEXT NOT NULL,
+        semana_lunes TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(id_estudiante, id_curso, semana_lunes)
+    );
+    """)
+
     conn.commit()
     conn.close()
 

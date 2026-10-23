@@ -54,6 +54,20 @@ class TutorViewModel extends ChangeNotifier {
     }
   }
 
+  void clear() {
+    _mensajes.clear();
+    _selectedCourseId = null;
+    _selectedCourseName = null;
+    _isTyping = false;
+    _sugerenciasActivas = [
+      '¿Cómo puedo salir de la zona de riesgo?',
+      'Ayúdame a organizar un plan de estudio',
+      '¿Qué tareas tengo pendientes en Moodle?',
+    ];
+    _iniciarChat();
+    notifyListeners();
+  }
+
   void _iniciarChat() {
     _mensajes.add(
       ChatMessage(

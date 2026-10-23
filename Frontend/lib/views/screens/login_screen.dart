@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import 'courses_screen.dart';
 import 'main_navigation_screen.dart';
 
 /// Pantalla de acceso al Aula Virtual (Moodle LMS).

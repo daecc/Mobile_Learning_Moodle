@@ -8,6 +8,17 @@ import '../models/risk_detail_model.dart';
 import '../models/student_model.dart';
 import '../models/chat_message_model.dart';
 
+/// Resultado consolidado de las revisiones de diagnóstico y semanas previas
+class DiagnosticReviewsResult {
+  final List<String> cursosRevisados;
+  final int semanasPreviasCompletadas;
+
+  const DiagnosticReviewsResult({
+    this.cursosRevisados = const [],
+    this.semanasPreviasCompletadas = 0,
+  });
+}
+
 /// Cliente HTTP hacia la Rumbo API con respaldo offline (dataset de demostración).
 ///
 /// Los métodos [getDemoCourses] y [getDemoRiskDetail] exponen la data local que
@@ -64,11 +75,15 @@ class ApiService {
   // Cursos
   // ---------------------------------------------------------------------------
 
-  /// Obtiene los cursos del estudiante. Si la API no responde, usa la copia local.
-  Future<StudentCoursesResponse> getStudentCourses(String studentId) async {
+  /// Obtiene los cursos del estudiante. Si la API no responde, usa la copia local solo en modo demo.
+  Future<StudentCoursesResponse> getStudentCourses(
+    String studentId, {
+    bool refresh = false,
+  }) async {
     try {
+      final query = refresh ? '?refresh=true' : '';
       final resp = await _client
-          .get(Uri.parse('$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos'))
+          .get(Uri.parse('$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos$query'))
           .timeout(ApiConstants.timeout);
       if (resp.statusCode == 200) {
         return StudentCoursesResponse.fromJson(
@@ -76,21 +91,28 @@ class ApiService {
         );
       }
       throw Exception('Respuesta ${resp.statusCode}');
-    } catch (_) {
-      return getDemoCourses(studentId);
+    } catch (e) {
+      // Solo recurrir a cursos inventados/demo si el usuario está explícitamente en modo demo o pruebas
+      final upper = studentId.toUpperCase();
+      if (upper.contains('DEMO') || studentId == 'EST-0001') {
+        return getDemoCourses(studentId);
+      }
+      rethrow;
     }
   }
 
-  /// Detalle de riesgo de un curso. Si la API no responde, usa la copia local.
+  /// Detalle de riesgo de un curso. Si la API no responde, usa la copia local solo en modo demo.
   Future<RiskDetailResponse> getCourseRiskDetail(
     String studentId,
-    String courseId,
-  ) async {
+    String courseId, {
+    bool refresh = false,
+  }) async {
     try {
+      final query = refresh ? '?refresh=true' : '';
       final resp = await _client
           .get(
             Uri.parse(
-              '$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos/$courseId/riesgo',
+              '$baseUrl${ApiConstants.coursesEndpoint}/$studentId/cursos/$courseId/riesgo$query',
             ),
           )
           .timeout(ApiConstants.timeout);
@@ -100,8 +122,13 @@ class ApiService {
         );
       }
       throw Exception('Respuesta ${resp.statusCode}');
-    } catch (_) {
-      return getDemoRiskDetail(studentId, courseId);
+    } catch (e) {
+      // Solo recurrir a cursos inventados/demo si el usuario está explícitamente en modo demo o pruebas
+      final upper = studentId.toUpperCase();
+      if (upper.contains('DEMO') || studentId == 'EST-0001') {
+        return getDemoRiskDetail(studentId, courseId);
+      }
+      rethrow;
     }
   }
 
@@ -146,6 +173,60 @@ class ApiService {
           'Revisar mis tareas',
         ],
       );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Revisiones de Diagnóstico Metacognitivo ("Estratega del Aprendizaje")
+  // ---------------------------------------------------------------------------
+
+
+  Future<DiagnosticReviewsResult> getDiagnosticReviews(String studentId) async {
+    try {
+      final resp = await _client
+          .get(
+            Uri.parse('$baseUrl/api/estudiantes/$studentId/revisiones-diagnostico'),
+          )
+          .timeout(ApiConstants.timeout);
+
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body) as Map<String, dynamic>;
+        final list = body['cursos_revisados'] as List<dynamic>?;
+        final semanas = (body['semanas_previas_completadas'] as num?)?.toInt() ?? 0;
+        return DiagnosticReviewsResult(
+          cursosRevisados: list?.map((e) => e.toString()).toList() ?? [],
+          semanasPreviasCompletadas: semanas,
+        );
+      }
+      return const DiagnosticReviewsResult();
+    } catch (_) {
+      return const DiagnosticReviewsResult();
+    }
+  }
+
+  Future<DiagnosticReviewsResult> recordDiagnosticReview(
+    String studentId,
+    String courseId,
+  ) async {
+    try {
+      final resp = await _client
+          .post(
+            Uri.parse('$baseUrl/api/estudiantes/$studentId/cursos/$courseId/revision-diagnostico'),
+          )
+          .timeout(ApiConstants.timeout);
+
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body) as Map<String, dynamic>;
+        final list = body['cursos_revisados'] as List<dynamic>?;
+        final semanas = (body['semanas_previas_completadas'] as num?)?.toInt() ?? 0;
+        return DiagnosticReviewsResult(
+          cursosRevisados: list?.map((e) => e.toString()).toList() ?? [],
+          semanasPreviasCompletadas: semanas,
+        );
+      }
+      return const DiagnosticReviewsResult();
+    } catch (_) {
+      return const DiagnosticReviewsResult();
     }
   }
 
@@ -303,15 +384,53 @@ class ApiService {
           influencia: 2,
           chartType: 'tasks_timeline',
           chartValues: [1, 1, 1, 0, 0],
+          tareas: [
+            TaskDetailItem(
+              id: 1,
+              nombre: 'Tarea 1: Introducción y Caso de Estudio',
+              estado: 'entregada',
+              fechaLimite: '02/10/2026 23:59',
+              fechaEntrega: '01/10/2026 19:30',
+              calificacion: '16.0 / 20',
+            ),
+            TaskDetailItem(
+              id: 2,
+              nombre: 'Tarea 2: Análisis de Requisitos',
+              estado: 'entregada',
+              fechaLimite: '09/10/2026 23:59',
+              fechaEntrega: '09/10/2026 21:10',
+              calificacion: '14.5 / 20',
+            ),
+            TaskDetailItem(
+              id: 3,
+              nombre: 'Tarea 3: Diseño de Arquitectura',
+              estado: 'entregada',
+              fechaLimite: '16/10/2026 23:59',
+              fechaEntrega: '15/10/2026 22:00',
+              calificacion: '15.0 / 20',
+            ),
+            TaskDetailItem(
+              id: 4,
+              nombre: 'Tarea 4: Implementación de Módulos Core',
+              estado: 'pendiente',
+              fechaLimite: '23/10/2026 23:59',
+            ),
+            TaskDetailItem(
+              id: 5,
+              nombre: 'Tarea 5: Informe Final de Calidad',
+              estado: 'pendiente',
+              fechaLimite: '30/10/2026 23:59',
+            ),
+          ],
         ),
         RiskFactor(
           clave: 'accesos',
-          titulo: 'Esta semana entraste 1 vez',
-          subtitulo: 'La mayoría de tu sección entra unas 4 veces por semana.',
+          titulo: 'Constancia semanal: 1 día activo',
+          subtitulo: 'Registraste estudio en 1 día esta semana frente a la meta recomendada (4 días).',
           impacto: 'aumenta',
           influencia: 2,
           chartType: 'weekly_logins',
-          chartValues: [1, 2, 0, 1, 4],
+          chartValues: [1, 4],
         ),
       ],
       favorables: [
@@ -419,11 +538,47 @@ class ApiService {
       ],
       favorables: [
         RiskFactor(
-          clave: 'entregas',
+          clave: 'tareas',
           titulo: 'Has completado el 100% de entregas',
           subtitulo: 'Entregaste todas las tareas a tiempo.',
           impacto: 'reduce',
           influencia: 3,
+          chartType: 'tasks_timeline',
+          chartValues: [1, 1, 1, 1],
+          tareas: [
+            TaskDetailItem(
+              id: 11,
+              nombre: 'Laboratorio 1: Configuración de Entorno',
+              estado: 'entregada',
+              fechaLimite: '05/10/2026 23:59',
+              fechaEntrega: '04/10/2026 18:20',
+              calificacion: '18.0 / 20',
+            ),
+            TaskDetailItem(
+              id: 12,
+              nombre: 'Laboratorio 2: Programación Asíncrona',
+              estado: 'entregada',
+              fechaLimite: '12/10/2026 23:59',
+              fechaEntrega: '11/10/2026 20:00',
+              calificacion: '17.5 / 20',
+            ),
+            TaskDetailItem(
+              id: 13,
+              nombre: 'Laboratorio 3: Consumo de APIs REST',
+              estado: 'entregada',
+              fechaLimite: '19/10/2026 23:59',
+              fechaEntrega: '18/10/2026 15:45',
+              calificacion: '19.0 / 20',
+            ),
+            TaskDetailItem(
+              id: 14,
+              nombre: 'Laboratorio 4: Pruebas y Despliegue',
+              estado: 'entregada',
+              fechaLimite: '26/10/2026 23:59',
+              fechaEntrega: '24/10/2026 19:10',
+              calificacion: '16.0 / 20',
+            ),
+          ],
         ),
         RiskFactor(
           clave: 'accesos',

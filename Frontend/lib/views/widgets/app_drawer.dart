@@ -5,8 +5,12 @@ import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/metacognitive_viewmodel.dart';
+import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/tutor_viewmodel.dart';
+import '../../data/models/gamification_tier.dart';
 import '../screens/login_screen.dart';
+import 'tier_avatar.dart';
 
 /// Barra de navegación lateral (Drawer) rediseñada con estética móvil limpia y humana.
 class AppDrawer extends StatelessWidget {
@@ -58,6 +62,10 @@ class AppDrawer extends StatelessWidget {
               Navigator.of(ctx).pop();
               nav.pop();
               context.read<AuthViewModel>().logout();
+              context.read<CoursesViewModel>().clear();
+              context.read<MetacognitiveViewModel>().clear();
+              context.read<RiesgoViewModel>().clear();
+              context.read<TutorViewModel>().clear();
               nav.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
@@ -103,32 +111,75 @@ class AppDrawer extends StatelessWidget {
     final coursesVm = context.watch<CoursesViewModel>();
     final themeVm = context.watch<ThemeViewModel>();
 
+    MetacognitiveViewModel? metacognitiveVm;
+    try {
+      metacognitiveVm = context.watch<MetacognitiveViewModel>();
+    } catch (_) {}
+
+    TutorViewModel? tutorVm;
+    try {
+      tutorVm = context.watch<TutorViewModel>();
+    } catch (_) {}
+
     final nombreEstudiante = authStudent?.nombre ?? coursesVm.studentName;
     final codigoEstudiante = authStudent?.idEstudiante ?? coursesVm.studentId;
     final iniciales = authStudent?.iniciales ?? coursesVm.iniciales;
+
+    final safeCourses = coursesVm.courses.where((c) => c.nivelRiesgo == 'BAJO').length;
+    final totalCursos = coursesVm.courses.length;
+    final tareasTotales = metacognitiveVm?.tareasTotales ?? 0;
+    final tareasEntregadas = metacognitiveVm?.tareasEntregadas ?? 0;
+    final diasActivos = metacognitiveVm?.diasActivosSemanales ?? 0;
+    final tutorConsultas = tutorVm?.mensajes.where((m) => m.esUsuario).length ?? 0;
+    final cursosRevisadosCount = metacognitiveVm?.cursosRevisadosEstaSemana.length ?? 0;
+    final esEstratega = totalCursos > 0 && cursosRevisadosCount >= totalCursos;
+
+    double sumaNotasPonderadas = 0.0;
+    int sumaCreditosConNota = 0;
+    if (metacognitiveVm != null) {
+      for (final c in metacognitiveVm.cursos) {
+        final prom = c.metricas.where((m) => m.clave == 'promedio').firstOrNull;
+        if (prom == null || prom.valor == 'Sin notas') continue;
+        final nota = double.tryParse(prom.valor);
+        if (nota != null) {
+          final creditos = c.curso.creditos > 0 ? c.curso.creditos : 4;
+          sumaNotasPonderadas += nota * creditos;
+          sumaCreditosConNota += creditos;
+        }
+      }
+    }
+    final tieneBuenPromedio = sumaCreditosConNota > 0 &&
+        (sumaNotasPonderadas / sumaCreditosConNota) >= 14.0;
+
+    final pointsSummary = GamificationPointsSummary.calculate(
+      tareasEntregadas: tareasEntregadas,
+      safeCourses: safeCourses,
+      totalCursos: totalCursos,
+      tareasTotales: tareasTotales,
+      tieneBuenPromedio: tieneBuenPromedio,
+      diasActivosSemanales: diasActivos,
+      esEstrategaEstaSemana: esEstratega,
+      semanasPreviasEstratega: metacognitiveVm?.semanasPreviasEstratega ?? 0,
+      semanasPreviasConstancia: metacognitiveVm?.semanasPreviasConstancia ?? 0,
+      tutorConsultas: tutorConsultas,
+    );
+    final tier = pointsSummary.tier;
 
     return Drawer(
       backgroundColor: AppColors.surfaceOf(context),
       child: SafeArea(
         child: Column(
           children: [
-            // Cabecera de Perfil Minimalista
+            // Cabecera de Perfil Minimalista con Marco Cosmético
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppColors.brand,
-                    child: Text(
-                      iniciales,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                  TierAvatar(
+                    initials: iniciales,
+                    tier: tier,
+                    radius: 26,
+                    borderWidth: 2.8,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -160,6 +211,37 @@ class AppDrawer extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textMutedOf(context),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: tier.primaryColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: tier.primaryColor.withValues(alpha: 0.25),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(tier.icon, size: 11, color: tier.primaryColor),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Nivel ${tier.level} · ${tier.title}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: tier.primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -292,27 +374,19 @@ class AppDrawer extends StatelessWidget {
 class _CleanDrawerTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final bool isSelected;
-  final String? badge;
-  final Color? badgeColor;
-  final Color? badgeTextColor;
   final Color? color;
   final VoidCallback onTap;
 
   const _CleanDrawerTile({
     required this.icon,
     required this.title,
-    this.isSelected = false,
-    this.badge,
-    this.badgeColor,
-    this.badgeTextColor,
     this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? (isSelected ? AppColors.brand : AppColors.textPrimaryOf(context));
+    final effectiveColor = color ?? AppColors.textPrimaryOf(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -320,37 +394,20 @@ class _CleanDrawerTile extends StatelessWidget {
         onTap: onTap,
         dense: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: isSelected ? AppColors.brandSoftOf(context) : Colors.transparent,
+        tileColor: Colors.transparent,
         leading: Icon(
           icon,
           size: 20,
-          color: color ?? (isSelected ? AppColors.brand : AppColors.textSecondaryOf(context)),
+          color: color ?? AppColors.textSecondaryOf(context),
         ),
         title: Text(
           title,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: FontWeight.w600,
             color: effectiveColor,
           ),
         ),
-        trailing: badge != null
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor ?? AppColors.brandSoftOf(context),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeTextColor ?? (badgeColor != null ? Colors.white : AppColors.brandOf(context)),
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }
@@ -1043,7 +1100,7 @@ class _AjustesModalState extends State<_AjustesModal> {
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
                   ),
                   value: _alertaTareas,
-                  activeColor: AppColors.brandOf(context),
+                  activeThumbColor: AppColors.brandOf(context),
                   onChanged: (val) => setState(() => _alertaTareas = val),
                 ),
                 SwitchListTile(
@@ -1061,7 +1118,7 @@ class _AjustesModalState extends State<_AjustesModal> {
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
                   ),
                   value: _alertaRezago,
-                  activeColor: AppColors.brandOf(context),
+                  activeThumbColor: AppColors.brandOf(context),
                   onChanged: (val) => setState(() => _alertaRezago = val),
                 ),
                 SwitchListTile(
@@ -1079,7 +1136,7 @@ class _AjustesModalState extends State<_AjustesModal> {
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
                   ),
                   value: _sugerenciasTutor,
-                  activeColor: AppColors.brandOf(context),
+                  activeThumbColor: AppColors.brandOf(context),
                   onChanged: (val) => setState(() => _sugerenciasTutor = val),
                 ),
                 const SizedBox(height: 16),
@@ -1110,7 +1167,7 @@ class _AjustesModalState extends State<_AjustesModal> {
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
                   ),
                   value: _sonidos,
-                  activeColor: AppColors.brandOf(context),
+                  activeThumbColor: AppColors.brandOf(context),
                   onChanged: (val) => setState(() => _sonidos = val),
                 ),
                 const SizedBox(height: 16),
@@ -1122,30 +1179,28 @@ class _AjustesModalState extends State<_AjustesModal> {
                     color: AppColors.textPrimaryOf(context),
                   ),
                 ),
-                const SizedBox(height: 6),
-                RadioListTile<String>(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Automática en segundo plano', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
-                  value: 'auto',
+                RadioGroup<String>(
                   groupValue: _sincro,
-                  activeColor: AppColors.brandOf(context),
-                  onChanged: (v) => setState(() => _sincro = v!),
-                ),
-                RadioListTile<String>(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Al abrir la aplicación', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
-                  value: 'open',
-                  groupValue: _sincro,
-                  activeColor: AppColors.brandOf(context),
-                  onChanged: (v) => setState(() => _sincro = v!),
-                ),
-                RadioListTile<String>(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Manual únicamente', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
-                  value: 'manual',
-                  groupValue: _sincro,
-                  activeColor: AppColors.brandOf(context),
-                  onChanged: (v) => setState(() => _sincro = v!),
+                  onChanged: (v) => setState(() => _sincro = v ?? 'auto'),
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Automática en segundo plano', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
+                        value: 'auto',
+                      ),
+                      RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Al abrir la aplicación', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
+                        value: 'open',
+                      ),
+                      RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Manual únicamente', style: TextStyle(fontSize: 13, color: AppColors.textPrimaryOf(context))),
+                        value: 'manual',
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(

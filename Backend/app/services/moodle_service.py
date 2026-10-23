@@ -369,9 +369,14 @@ class MoodleService:
                     grade_items = grades_by_course.get(cid, [])
                     asist_formal_found = None
                     for gi in grade_items:
+                        item_type = (gi.get("itemtype") or "").lower()
                         item_name = (gi.get("itemname") or "").lower()
                         raw = gi.get("graderaw")
                         gmax = gi.get("grademax") or 100
+
+                        # Ignorar totales agregados de curso o categoría que distorsionan el promedio de evaluaciones
+                        if item_type in ["course", "category"] or not gi.get("itemname"):
+                            continue
 
                         if raw is not None:
                             try:
@@ -384,7 +389,7 @@ class MoodleService:
                                         # Detección de escala vigesimal universitaria (UNMSM 0 a 20):
                                         # Si en Moodle la nota máxima está configurada en 100 por defecto
                                         # pero la nota asignada por el docente es <= 20, es escala vigesimal real.
-                                        if m_val == 100.0 and r_val <= 20.0 and r_val >= 0.0:
+                                        if m_val == 100.0 and 0.0 <= r_val <= 20.0:
                                             nota_vigesimal = r_val
                                         else:
                                             nota_vigesimal = (r_val / m_val) * 20.0
@@ -513,7 +518,7 @@ class MoodleService:
                     tendencia = 0.4 if promedio >= 14 else (-0.6 if promedio < 11 else 0.0)
                     margen_entrega = -48.0 if pending_tasks > 1 else (12.0 if pending_tasks == 1 else 48.0)
                     asist_formal = 0.95 if dias_inact <= 2 else 0.75
-                    grades_vals = [promedio - 0.5, promedio + 0.3, promedio]
+                    grades_vals = [round(promedio - 1.0, 1), round(promedio + 0.5, 1)]
                     course_tasks_detail = [
                         {
                             "id": 101,
@@ -592,8 +597,9 @@ class MoodleService:
                     codigo = excluded.codigo;
                 """, (internal_id, cid, c_name, c_short, id_estudiante))
 
-                # 6. Insertar Métricas (sin inventar números falsos para el promedio)
+                # 6. Insertar Métricas (sin inventar números falsos para el promedio ni asistencia)
                 prom_guardar = promedio if tiene_calificaciones else None
+                asist_f_guardar = asist_formal_found if is_live else asist_formal
                 cur.execute("""
                 INSERT INTO metricas (
                     id_curso, id_estudiante, dias_inactividad, tareas_totales,
@@ -604,7 +610,7 @@ class MoodleService:
                 """, (
                     internal_id, id_estudiante, dias_inact, total_tasks,
                     pending_tasks, prom_guardar, accesos_semana, prom_guardar,
-                    tendencia, margen_entrega, asist_formal, asist_virtual
+                    tendencia, margen_entrega, asist_f_guardar, asist_virtual
                 ))
 
                 # 7. Ejecutar ML Predictor (Regresión Logística con 7 variables)
@@ -643,10 +649,15 @@ class MoodleService:
                 else:
                     chart_tasks = [1]
 
-                subtitulo_tareas = "No hay tareas programadas en Moodle." if total_tasks == 0 else (
-                    "Todas las tareas han sido entregadas en Moodle." if pending_tasks == 0 else
-                    f"{pending_tasks} de {total_tasks} tarea{'s' if total_tasks != 1 else ''} pendiente{'s' if pending_tasks != 1 else ''} en Moodle."
-                )
+                vencidas_count = sum(1 for t in course_tasks_detail if t.get("estado") == "vencida")
+                if total_tasks == 0:
+                    subtitulo_tareas = "No hay tareas programadas en Moodle."
+                elif pending_tasks == 0:
+                    subtitulo_tareas = "Todas las tareas han sido entregadas en Moodle."
+                elif vencidas_count > 0:
+                    subtitulo_tareas = f"Tienes {vencidas_count} tarea{'s' if vencidas_count != 1 else ''} con fecha vencida sin entregar en Moodle."
+                else:
+                    subtitulo_tareas = f"{pending_tasks} de {total_tasks} tarea{'s' if total_tasks != 1 else ''} pendiente{'s' if pending_tasks != 1 else ''} en Moodle."
 
                 factores_list = [
                     {
@@ -662,10 +673,9 @@ class MoodleService:
 
                 # Factor de calificaciones: transparente y real
                 if tiene_calificaciones:
-                    if len(grades_vals) >= 2:
-                        quiz_trend_vals = [round(float(g), 1) for g in grades_vals[-4:]]
-                    else:
-                        quiz_trend_vals = [round(promedio, 1)]
+                    ultimas_evals = [round(float(g), 1) for g in grades_vals[-5:]]
+                    # La última barra representa el promedio general de evaluaciones
+                    quiz_trend_vals = ultimas_evals + [round(promedio, 1)]
 
                     factores_list.append({
                         "clave": "cuestionarios",

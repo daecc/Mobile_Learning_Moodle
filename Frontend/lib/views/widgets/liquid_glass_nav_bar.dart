@@ -78,6 +78,7 @@ class LiquidGlassNavBar extends StatelessWidget {
                     label: 'Tutor IA',
                     isSelected: currentIndex == 1,
                     onTap: () => onTap(1),
+                    badgeText: 'IA',
                   ),
                   _NavItem(
                     icon: Icons.bar_chart_rounded,

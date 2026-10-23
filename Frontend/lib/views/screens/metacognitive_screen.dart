@@ -8,6 +8,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
 import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../data/services/sync_coordinator.dart';
 import 'risk_screen.dart';
 import 'tutor_screen.dart';
 
@@ -39,13 +40,12 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
     });
   }
 
-  Future<void> _cargar() {
-    final courses = context.read<CoursesViewModel>();
-    final authStudent = context.read<AuthViewModel>().student;
-    final studentId = authStudent?.idEstudiante ?? courses.studentId;
-    return context
-        .read<MetacognitiveViewModel>()
-        .load(courses.courses, studentId);
+  Future<void> _cargar({bool refresh = false}) async {
+    if (refresh) {
+      await AppSyncCoordinator.syncAll(context, refreshMoodle: true);
+    } else {
+      await AppSyncCoordinator.reloadLocalState(context);
+    }
   }
 
   @override
@@ -53,11 +53,19 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
     final themeVm = context.watch<ThemeViewModel>();
     final vm = context.watch<MetacognitiveViewModel>();
     final coursesVm = context.watch<CoursesViewModel>();
+    final authStudent = context.watch<AuthViewModel>().student;
+    final currentStudentId = authStudent?.idEstudiante ?? coursesVm.studentId;
 
-    // Si los cursos ya están disponibles y las métricas están en espera, cargarlas automáticamente
-    if (coursesVm.courses.isNotEmpty &&
-        vm.status == MetacognitiveStatus.idle &&
-        !vm.isLoading) {
+    // Si cambió el estudiante respecto a lo cargado, o si las métricas están en idle y hay cursos disponibles
+    final estudianteDesfasado = currentStudentId.isNotEmpty &&
+        vm.currentStudentId != null &&
+        vm.currentStudentId != currentStudentId;
+
+    final requiereCarga = coursesVm.courses.isNotEmpty &&
+        (vm.status == MetacognitiveStatus.idle || estudianteDesfasado) &&
+        !vm.isLoading;
+
+    if (requiereCarga) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _cargar();
       });
@@ -97,6 +105,11 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
               ),
         actions: [
           IconButton(
+            onPressed: () => _cargar(refresh: true),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondaryOf(context)),
+            tooltip: 'Sincronizar métricas con Moodle',
+          ),
+          IconButton(
             onPressed: () => themeVm.toggleTheme(),
             icon: Icon(
               themeVm.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -118,7 +131,13 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
     MetacognitiveViewModel vm,
     CoursesViewModel coursesVm,
   ) {
-    if (coursesVm.isLoading || vm.isLoading) {
+    final authStudent = context.watch<AuthViewModel>().student;
+    final currentStudentId = authStudent?.idEstudiante ?? coursesVm.studentId;
+    final estudianteDesfasado = currentStudentId.isNotEmpty &&
+        vm.currentStudentId != null &&
+        vm.currentStudentId != currentStudentId;
+
+    if (coursesVm.isLoading || vm.isLoading || estudianteDesfasado) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -177,7 +196,7 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
 
     return RefreshIndicator(
       color: AppColors.brand,
-      onRefresh: _cargar,
+      onRefresh: () => _cargar(refresh: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(20, 16, 20, widget.isTab ? 95 : 32),
@@ -232,7 +251,15 @@ class _MetacognitiveScreenState extends State<MetacognitiveScreen> {
               letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 3),
+          Text(
+            'Indicadores clave de tu interacción, notas y entregas en Moodle.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondaryOf(context),
+            ),
+          ),
+          const SizedBox(height: 12),
           ...vm.cursos.map(
             (c) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -675,8 +702,10 @@ class _CursoMetricasCard extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children:
-                        datos.metricas.map((m) => _MetricaChip(stat: m)).toList(),
+                    children: datos.metricas
+                        .where((m) => m.clave != 'entregas')
+                        .map((m) => MetricaChip(stat: m))
+                        .toList(),
                   ),
               ],
             ),
@@ -687,23 +716,86 @@ class _CursoMetricasCard extends StatelessWidget {
   }
 }
 
-class _MetricaChip extends StatelessWidget {
+class MetricaChip extends StatelessWidget {
   final MetacognitiveStat stat;
 
-  const _MetricaChip({required this.stat});
+  const MetricaChip({super.key, required this.stat});
 
-  String get _texto {
+  IconData get _icon {
+    switch (stat.clave) {
+      case 'inactividad':
+        return Icons.access_time_rounded;
+      case 'promedio':
+        return Icons.auto_graph_rounded;
+      case 'tendencia':
+        if (stat.valor.startsWith('+')) return Icons.trending_up_rounded;
+        if (stat.valor.startsWith('-')) return Icons.trending_down_rounded;
+        return Icons.trending_flat_rounded;
+      case 'procrastinacion':
+      case 'entregas':
+        return Icons.assignment_outlined;
+      case 'asistencia_formal':
+        return Icons.how_to_reg_outlined;
+      case 'asistencia_virtual':
+        return Icons.laptop_chromebook_rounded;
+      default:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  String get _categoria {
+    switch (stat.clave) {
+      case 'inactividad':
+        return 'Acceso';
+      case 'promedio':
+        return 'Promedio';
+      case 'tendencia':
+        return 'Tendencia';
+      case 'procrastinacion':
+      case 'entregas':
+        return 'Tareas pendientes';
+      case 'asistencia_formal':
+        return 'Asistencia';
+      case 'asistencia_virtual':
+        return 'Constancia';
+      default:
+        return stat.titulo;
+    }
+  }
+
+  String get _valorFormateado {
     switch (stat.clave) {
       case 'inactividad':
         return stat.valor == '0'
-            ? 'Entraste hoy'
-            : '${stat.valor} ${stat.valor == '1' ? 'día' : 'días'} sin entrar';
+            ? 'Hoy'
+            : (stat.valor == '1' ? 'Hace 1 día' : 'Hace ${stat.valor} días');
       case 'promedio':
-        return 'Promedio ${stat.valor}${stat.unidad != null ? ' ${stat.unidad}' : ''}';
+        return stat.valor == 'Sin notas'
+            ? 'Sin calificaciones'
+            : '${stat.valor}${stat.unidad != null ? ' ${stat.unidad}' : ''}';
+      case 'tendencia':
+        if (stat.valor.toLowerCase().contains('sin historial')) {
+          return 'Sin historial';
+        }
+        if (stat.valor.startsWith('+')) {
+          return 'En ascenso (${stat.valor})';
+        }
+        if (stat.valor.startsWith('-')) {
+          return 'En descenso (${stat.valor})';
+        }
+        return 'Estable (${stat.valor})';
       case 'entregas':
-        return '${stat.valor} tareas pendientes';
+      case 'procrastinacion':
+        return stat.valor;
+      case 'asistencia_formal':
+        if (stat.valor.toLowerCase().contains('sin registro')) {
+          return 'Sin registro';
+        }
+        return stat.valor;
+      case 'asistencia_virtual':
+        return stat.valor.contains('%') ? stat.valor : '${stat.valor}%';
       default:
-        return '${stat.titulo}: ${stat.valor}';
+        return stat.valor;
     }
   }
 
@@ -718,34 +810,64 @@ class _MetricaChip extends StatelessWidget {
     }
   }
 
+  Color _valorColor(BuildContext context) {
+    switch (stat.estado) {
+      case 'critico':
+        return AppColors.riskHigh;
+      case 'alerta':
+        return AppColors.riskMedium;
+      default:
+        if (_valorFormateado.toLowerCase().contains('completadas') ||
+            _valorFormateado.toLowerCase().contains('al día') ||
+            _valorFormateado.toLowerCase().contains('hoy') ||
+            _valorFormateado.toLowerCase().contains('en ascenso')) {
+          return AppColors.riskLow;
+        }
+        return AppColors.textSecondaryOf(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark
         ? const Color(0xFF1E293B)
-        : const Color(0xFFE2E8F0).withValues(alpha: 0.65);
+        : const Color(0xFFF1F5F9);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 5.5),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _color.withValues(alpha: isDark ? 0.45 : 0.35),
+          width: 1.1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
+          Icon(_icon, size: 13.5, color: _color),
+          const SizedBox(width: 5),
           Text(
-            _texto,
+            '$_categoria: ',
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondaryOf(context),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              _valorFormateado,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+                color: _valorColor(context),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

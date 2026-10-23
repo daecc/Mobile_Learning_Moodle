@@ -11,10 +11,12 @@ import 'package:rumbo_app/views/widgets/factor_charts/day_circles_chart.dart';
 import 'package:rumbo_app/views/widgets/factor_charts/quiz_trend_chart.dart';
 import 'package:rumbo_app/views/widgets/factor_charts/tasks_timeline_chart.dart';
 import 'package:rumbo_app/views/widgets/factor_charts/weekly_logins_chart.dart';
+import 'package:rumbo_app/views/widgets/liquid_glass_nav_bar.dart';
 
 class FakeFactorsApiService extends ApiService {
   @override
-  Future<RiskDetailResponse> getCourseRiskDetail(String studentId, String courseId) async {
+  Future<RiskDetailResponse> getCourseRiskDetail(
+      String studentId, String courseId, {bool refresh = false}) async {
     return getDemoRiskDetail(studentId, courseId);
   }
 }
@@ -84,8 +86,8 @@ void main() {
     expect(find.byType(TasksTimelineChart), findsOneWidget);
 
     // Factor 4: Frecuencia de acceso semanal
-    expect(find.text('Esta semana entraste 1 vez'), findsOneWidget);
-    expect(find.text('La mayoría de tu sección entra unas 4 veces por semana.'), findsOneWidget);
+    expect(find.text('Constancia semanal: 1 día activo'), findsOneWidget);
+    expect(find.text('Registraste estudio en 1 día esta semana frente a la meta recomendada (4 días).'), findsOneWidget);
     expect(find.byType(WeeklyLoginsChart), findsOneWidget);
 
     // 4. Section: Lo que juega a tu favor
@@ -153,5 +155,97 @@ void main() {
     expect(find.text('Sin estimación'), findsOneWidget);
     expect(find.text('Gestión de Proyectos de Software'), findsOneWidget);
     expect(find.text('Sin factores calculados aún'), findsOneWidget);
+  });
+
+  testWidgets('WeeklyLoginsChart renders List<double> without runtime TypeError', (tester) async {
+    final List<double> doubleValues = [5.0, 3.0, 2.0, 4.0, 4.0];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WeeklyLoginsChart(values: doubleValues),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('5'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('4'), findsNWidgets(2));
+  });
+
+  testWidgets('WeeklyLoginsChart renders 2-bar comparison mode (Tus accesos vs Meta recomendada)', (tester) async {
+    final List<double> comparisonValues = [6.0, 4.0];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WeeklyLoginsChart(values: comparisonValues),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('6'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
+    expect(find.text('Días activos'), findsOneWidget);
+    expect(find.text('Meta recomendada'), findsOneWidget);
+  });
+
+  testWidgets('Tapping on Tareas factor opens bottom sheet modal with task details', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final api = FakeFactorsApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final riesgoVm = RiesgoViewModel(apiService: api);
+
+    await tester.pumpWidget(createFactorsWidget(riesgoVm, authVm, 'CUR-001'));
+    await tester.pumpAndSettle();
+
+    // Verify task detail prompt is present
+    expect(find.text('Ver detalle de cada tarea (5)'), findsOneWidget);
+
+    // Tap to open bottom sheet
+    await tester.tap(find.text('Ver detalle de cada tarea (5)'));
+    await tester.pumpAndSettle();
+
+    // Verify modal bottom sheet opened
+    expect(find.text('Detalle de Tareas'), findsOneWidget);
+    expect(find.text('Patrones de Diseño de Software'), findsWidgets);
+    expect(find.text('3 entregadas'), findsOneWidget);
+    expect(find.text('2 pendientes'), findsOneWidget);
+    expect(find.text('Tarea 1: Introducción y Caso de Estudio'), findsOneWidget);
+    expect(find.text('Tarea 4: Implementación de Módulos Core'), findsOneWidget);
+
+    // Tap close button
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify modal is dismissed
+    expect(find.text('Detalle de Tareas'), findsNothing);
+  });
+
+  testWidgets('FactorsScreen renders LiquidGlassNavBar and keeps bottom menu visible', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final api = FakeFactorsApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final riesgoVm = RiesgoViewModel(apiService: api);
+
+    await tester.pumpWidget(createFactorsWidget(riesgoVm, authVm, 'CUR-001'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LiquidGlassNavBar), findsOneWidget);
+    expect(find.text('Asignaturas'), findsOneWidget);
+    expect(find.text('IA'), findsOneWidget);
   });
 }

@@ -9,11 +9,11 @@ import 'viewmodels/metacognitive_viewmodel.dart';
 import 'viewmodels/riesgo_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
 import 'viewmodels/tutor_viewmodel.dart';
-import 'views/screens/courses_screen.dart';
 import 'views/screens/login_screen.dart';
 import 'views/screens/main_navigation_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const RumboBootstrap());
 }
 

@@ -11,7 +11,8 @@ import 'package:rumbo_app/views/screens/courses_screen.dart';
 
 class FakeApiService extends ApiService {
   @override
-  Future<StudentCoursesResponse> getStudentCourses(String studentId) async {
+  Future<StudentCoursesResponse> getStudentCourses(
+      String studentId, {bool refresh = false}) async {
     return getDemoCourses(studentId);
   }
 }
@@ -47,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header
-    expect(find.text('Hola, Valeria 👋'), findsOneWidget);
+    expect(find.text('Hola, Valeria'), findsOneWidget);
     expect(find.text('Mis Cursos'), findsOneWidget);
     expect(find.text('VQ'), findsOneWidget);
 
@@ -59,10 +60,6 @@ void main() {
     expect(find.text('1 crítico'), findsOneWidget);
     expect(find.text('2 moderado'), findsOneWidget);
     expect(find.text('1 seguro'), findsOneWidget);
-    expect(
-      find.text('Basado en tu actividad académica reciente y entregas de MoodleCloud.'),
-      findsOneWidget,
-    );
 
     // Verify sort & sync row
     expect(find.text('Por prioridad de riesgo'), findsOneWidget);
@@ -70,16 +67,16 @@ void main() {
 
     // Verify courses
     expect(find.text('Patrones de Diseño de Software'), findsOneWidget);
-    expect(find.text('85'), findsOneWidget);
+    expect(find.text('85%'), findsOneWidget);
 
     expect(find.text('Ingeniería de Requisitos'), findsOneWidget);
-    expect(find.text('52'), findsOneWidget);
+    expect(find.text('52%'), findsOneWidget);
 
     expect(find.text('Arquitectura de Software'), findsOneWidget);
-    expect(find.text('41'), findsOneWidget);
+    expect(find.text('41%'), findsOneWidget);
 
     expect(find.text('Base de Datos II'), findsOneWidget);
-    expect(find.text('18'), findsOneWidget);
+    expect(find.text('18%'), findsOneWidget);
 
     expect(find.text('Gestión de Proyectos de Software'), findsOneWidget);
     expect(find.text('Desde el 19 de oct.'), findsOneWidget);
@@ -133,5 +130,42 @@ void main() {
     expect(find.text('Error de conexión con el backend'), findsOneWidget);
     expect(find.text('Reintentar conexión'), findsOneWidget);
     expect(find.text('Volver al login'), findsOneWidget);
+  });
+
+  testWidgets('AppDrawer opens and renders navigation and settings options', (tester) async {
+    final api = FakeApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final coursesVm = CoursesViewModel(apiService: api);
+
+    await tester.pumpWidget(createCoursesWidget(coursesVm, authVm));
+    await tester.pumpAndSettle();
+
+    // Open drawer by tapping menu button
+    await tester.tap(find.byIcon(Icons.menu_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify drawer contents
+    expect(find.text('Agenda y Entregas'), findsOneWidget);
+    expect(find.text('Modo Oscuro'), findsOneWidget);
+    expect(find.text('Cerrar Sesión'), findsOneWidget);
+  });
+
+  testWidgets('Tapping profile avatar opens bottom sheet modal with Cerrar Sesion button', (tester) async {
+    final api = FakeApiService();
+    final authVm = AuthViewModel(apiService: api);
+    final coursesVm = CoursesViewModel(apiService: api);
+
+    await tester.pumpWidget(createCoursesWidget(coursesVm, authVm));
+    await tester.pumpAndSettle();
+
+    // Tap on student initials avatar in header ('VQ' for Valeria Quispe)
+    await tester.tap(find.text('VQ'));
+    await tester.pumpAndSettle();
+
+    // Modal bottom sheet should display student profile info and Cerrar Sesión button
+    expect(find.text('Carrera'), findsOneWidget);
+    expect(find.text('Ciclo Académico'), findsOneWidget);
+    expect(find.text('Servidor LMS'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Cerrar Sesión'), findsOneWidget);
   });
 }
