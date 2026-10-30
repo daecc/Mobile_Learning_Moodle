@@ -127,7 +127,7 @@ erDiagram
   - `asistencia_virtual`: Regularidad de días activos a la semana.
 
 ### 4. Tabla `predicciones`
-- **Propósito**: Guarda los resultados de inferencia del modelo de Machine Learning (`RandomForestClassifier`) y los factores explicativos SHAP.
+- **Propósito**: Guarda los resultados de inferencia del modelo de Machine Learning (`LogisticRegression`) y los factores explicativos XAI.
 - **Campos Notables**:
   - `probabilidad` y `porcentaje`: Nivel numérico de riesgo de desaprobación.
   - `nivel_riesgo`: Clasificación semafórica (`BAJO`, `MODERADO`, `CRITICO`).

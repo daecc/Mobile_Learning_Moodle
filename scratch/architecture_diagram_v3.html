@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Arquitectura del Sistema - RUMBO (Mobile Learning Moodle)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    width: 1460px;
+    height: 770px;
+    background: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #0F172A;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 14px;
+    overflow: hidden;
+  }
+
+  .canvas-container {
+    width: 1432px;
+    height: 748px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 436px 500px 436px;
+    gap: 30px;
+    align-items: stretch;
+  }
+
+  /* ================== COLUMN BASE ================== */
+  .arch-column {
+    background: #FFFFFF;
+    border: 2.2px solid #0B2545;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 6px 16px -2px rgba(11, 37, 69, 0.08);
+    position: relative;
+    overflow: hidden;
+    height: 748px;
+  }
+
+  .col-header {
+    background: #0B2545;
+    color: #FFFFFF;
+    padding: 7px 12px;
+    border-radius: 11px 11px 0 0;
+    text-align: center;
+    height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .col-header h2 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    line-height: 1.1;
+  }
+  .col-header p {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #E2E8F0;
+    margin-top: 1px;
+  }
+
+  .col-content {
+    height: 700px;
+    padding: 7px 8px;
+    display: flex;
+    flex-direction: column;
+    background: #FAFCFE;
+    gap: 5px;
+  }
+
+  /* BASE PANEL CARDS */
+  .panel-card {
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 9px;
+    position: relative;
+  }
+
+  .panel-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0B2545;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    letter-spacing: -0.2px;
+  }
+  .panel-subtitle {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748B;
+    text-align: center;
+    margin-top: 1px;
+  }
+
+  /* CONNECTORS / ARROWS */
+  .v-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 14px;
+  }
+  .v-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #0B2545;
+    background: #E2E8F0;
+    padding: 0px 4px;
+    border-radius: 3px;
+    margin-bottom: 1px;
+    line-height: 1.1;
+  }
+
+  /* ============================================================== */
+  /* COLUMN 1: FRONTEND MÓVIL                                       */
+  /* ============================================================== */
+  .col1-top-grid {
+    height: 318px;
+    display: grid;
+    grid-template-columns: 212px 1fr;
+    gap: 7px;
+    align-items: stretch;
+  }
+
+  .col1-left-subcol {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  /* Phones */
+  .phones-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    height: 204px;
+  }
+  .phone-mockup {
+    width: 102px;
+    height: 204px;
+    background: #0F172A;
+    border-radius: 13px;
+    padding: 3.5px;
+    border: 1.5px solid #334155;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+  }
+  .phone-notch {
+    width: 26px;
+    height: 3px;
+    background: #000;
+    border-radius: 2px;
+    align-self: center;
+    margin-bottom: 2px;
+  }
+  .phone-screen {
+    flex: 1;
+    background: #F8FAFC;
+    border-radius: 9px;
+    overflow: hidden;
+    padding: 3.5px;
+    display: flex;
+    flex-direction: column;
+    font-size: 7px;
+  }
+  .p-screen-header {
+    background: #1E3A8A;
+    color: #FFF;
+    border-radius: 4px;
+    padding: 2.5px 3px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 7.5px;
+    margin-bottom: 2.5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .p-screen-card {
+    background: #FFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 4px;
+    padding: 2.5px 3px;
+    margin-bottom: 2.5px;
+  }
+  .badge-crit {
+    background: #FEE2E2;
+    color: #DC2626;
+    padding: 1px 2.5px;
+    border-radius: 2px;
+    font-weight: 800;
+    font-size: 6px;
+  }
+  .badge-low {
+    background: #DCFCE7;
+    color: #16A34A;
+    padding: 1px 2.5px;
+    border-radius: 2px;
+    font-weight: 800;
+    font-size: 6px;
+  }
+  .badge-xp {
+    background: #FEF3C7;
+    color: #D97706;
+    padding: 1px 3px;
+    border-radius: 2.5px;
+    font-weight: 800;
+    font-size: 6px;
+  }
+
+  /* Risk Gauge Box under phones */
+  .risk-gauge-card {
+    height: 109px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 4px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .gauge-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0B2545;
+    line-height: 1.1;
+  }
+  .gauge-sublabel {
+    font-size: 8.5px;
+    color: #64748B;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+
+  /* UI Components wireframe box */
+  .ui-components-box {
+    height: 318px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 7px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .flutter-brand-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .flutter-brand-wrap span {
+    font-size: 16px;
+    font-weight: 800;
+    color: #02569B;
+    letter-spacing: -0.3px;
+  }
+
+  /* Wireframe visual sketch matching reference style */
+  .wf-layout-sketch {
+    background: #F8FAFC;
+    border: 1px dashed #94A3B8;
+    border-radius: 6px;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 4px;
+    margin: 1px 0;
+  }
+  .wf-sidebar {
+    background: #E2E8F0;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5px;
+    padding: 2.5px;
+  }
+  .wf-side-dot {
+    width: 100%;
+    height: 4px;
+    background: #94A3B8;
+    border-radius: 1.5px;
+  }
+  .wf-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5px;
+  }
+  .wf-bar {
+    height: 6px;
+    background: #CBD5E1;
+    border-radius: 2px;
+  }
+
+  .ui-features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3.5px;
+  }
+  .feature-pill-item {
+    background: #F1F5F9;
+    border: 1.2px solid #0B2545;
+    border-radius: 5px;
+    padding: 3.5px 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9.2px;
+    font-weight: 700;
+    color: #0B2545;
+  }
+  .feature-pill-item.active {
+    background: #EFF6FF;
+    border-color: #0284C7;
+    color: #0369A1;
+  }
+
+  /* Provider Card */
+  .provider-panel {
+    height: 84px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* MVVM Architecture Card */
+  .mvvm-panel {
+    height: 264px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 8px 7px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .mvvm-diagram-grid {
+    display: grid;
+    grid-template-columns: 1fr 24px 1.35fr 24px 1fr;
+    align-items: center;
+    gap: 1px;
+    text-align: center;
+  }
+  .mvvm-node {
+    border: 1.8px solid #0B2545;
+    border-radius: 7px;
+    padding: 12px 3px;
+    background: #F8FAFC;
+    font-weight: 800;
+    font-size: 11.5px;
+    color: #0B2545;
+  }
+  .mvvm-node.vm {
+    background: #EFF6FF;
+    border-color: #2563EB;
+    color: #1E3A8A;
+  }
+  .mvvm-node span {
+    display: block;
+    font-size: 8.5px;
+    font-weight: 500;
+    color: #64748B;
+    margin-top: 1px;
+  }
+  .mvvm-node.vm span {
+    color: #2563EB;
+    font-weight: 600;
+  }
+  .mvvm-arrow-text {
+    font-size: 8px;
+    font-weight: 700;
+    color: #475569;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ============================================================== */
+  /* COLUMN 2: BACKEND Y MOTOR ML                                   */
+  /* ============================================================== */
+  .fastapi-panel {
+    height: 74px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .endpoints-panel {
+    height: 128px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .endpoints-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .ep-box {
+    background: #EFF6FF;
+    border: 1.4px solid #0B2545;
+    border-radius: 6px;
+    padding: 5px 6px;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #0B2545;
+    display: flex;
+    flex-direction: column;
+  }
+  .ep-box span {
+    font-size: 8.5px;
+    font-weight: 500;
+    color: #475569;
+    margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ML & Core Services Card */
+  .ml-pipeline-panel {
+    height: 366px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .pipeline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pipeline-body-grid {
+    display: grid;
+    grid-template-columns: 190px 16px 1fr;
+    align-items: center;
+    gap: 5px;
+  }
+  .pipeline-left-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pipe-step-box {
+    border: 1.4px solid #0B2545;
+    border-radius: 6px;
+    padding: 5.5px 5px;
+    background: #F8FAFC;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #0B2545;
+    text-align: center;
+  }
+  .pipe-step-box span {
+    display: block;
+    font-size: 8px;
+    font-weight: 500;
+    color: #64748B;
+  }
+
+  .pred-service-box {
+    border: 1.8px solid #0284C7;
+    background: #EFF6FF;
+    border-radius: 8px;
+    padding: 12px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pred-service-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0369A1;
+    line-height: 1.2;
+  }
+  .pred-service-sub {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #0284C7;
+  }
+  .pred-service-desc {
+    font-size: 8.5px;
+    font-weight: 500;
+    color: #475569;
+    margin-top: 1px;
+    line-height: 1.25;
+  }
+
+  .gamif-meta-strip {
+    background: #FEF9C3;
+    border: 1.2px solid #CA8A04;
+    border-radius: 5px;
+    padding: 4.5px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #854D0E;
+  }
+
+  /* Auth & LLM Card */
+  .auth-panel {
+    height: 74px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ============================================================== */
+  /* COLUMN 3: SERVICIOS EXTERNOS Y ALMACENAMIENTO                  */
+  /* ============================================================== */
+  .moodle-panel {
+    height: 205px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .moodle-flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .moodle-arrows-col {
+    flex: 1;
+    margin: 0 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5px;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #1E293B;
+  }
+  .m-arrow-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #F1F5F9;
+    padding: 2.5px 5px;
+    border-radius: 4px;
+    border: 1px dashed #94A3B8;
+  }
+
+  .gemini-llm-strip {
+    background: #F0FDF4;
+    border: 1.2px solid #16A34A;
+    border-radius: 5px;
+    padding: 4.5px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #166534;
+  }
+
+  .sqlite-panel {
+    height: 485px;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 9px;
+    padding: 7px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .sqlite-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* 2x2 Tables Layout - Clean and completely fills the space */
+  .schema-tables-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+    flex: 1;
+    margin-top: 4px;
+  }
+  .schema-card {
+    border: 1.4px solid #0B2545;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #FFF;
+    font-size: 9px;
+    display: flex;
+    flex-direction: column;
+  }
+  .sc-header {
+    background: #0B2545;
+    color: #FFF;
+    font-weight: 800;
+    font-size: 9.5px;
+    padding: 3px 4px;
+    text-align: center;
+  }
+  .sc-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 2px 0;
+  }
+  .sc-row {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 2.5px 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .sc-row:last-child {
+    border-bottom: none;
+  }
+  .sc-key {
+    font-weight: 700;
+    color: #0284C7;
+  }
+  .sc-key.pk {
+    color: #DC2626;
+  }
+  .sc-val {
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ================== GLOBAL ARROWS ================== */
+  .g-arrow-col1-col2 {
+    position: absolute;
+    left: 436px;
+    width: 30px;
+    top: 195px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .g-arrow-pill {
+    background: #0B2545;
+    color: #FFFFFF;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1.5px 3.5px;
+    border-radius: 3.5px;
+    margin-bottom: 1.5px;
+    letter-spacing: 0.2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    white-space: nowrap;
+  }
+
+  .g-arrow-col2-col3-top {
+    position: absolute;
+    left: 966px;
+    width: 30px;
+    top: 135px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+
+  /* Elbow arrow connecting Column 2 Backend to Column 3 SQLite Database */
+  .g-arrow-col2-col3-bottom {
+    position: absolute;
+    left: 966px;
+    width: 30px;
+    top: 215px;
+    height: 145px;
+    z-index: 50;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-container">
+
+  <!-- ============================================================== -->
+  <!-- COLUMNA 1: FRONTEND MÓVIL (FLUTTER MVVM)                      -->
+  <!-- ============================================================== -->
+  <div class="arch-column">
+    <div class="col-header">
+      <h2>Frontend Móvil</h2>
+      <p>(Flutter MVVM)</p>
+    </div>
+
+    <div class="col-content">
+      
+      <!-- Top Grid: Phones + UI Components -->
+      <div class="col1-top-grid">
+        
+        <!-- Left Subcolumn: 2 Phones + Risk Gauge directly underneath -->
+        <div class="col1-left-subcol">
+          <div class="phones-row">
+            <!-- Phone 1: Courses Screen & Gamification -->
+            <div class="phone-mockup">
+              <div class="phone-notch"></div>
+              <div class="phone-screen">
+                <div class="p-screen-header">
+                  <span>Asignaturas</span>
+                  <span class="badge-xp">1,450 XP</span>
+                </div>
+                <div class="p-screen-card">
+                  <div style="font-weight:700; font-size:6.5px; color:#0F172A;">Ing. Software</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1px;">
+                    <span style="font-size:5.8px; color:#64748B;">Riesgo 84%</span>
+                    <span class="badge-crit">CRÍTICO</span>
+                  </div>
+                </div>
+                <div class="p-screen-card">
+                  <div style="font-weight:700; font-size:6.5px; color:#0F172A;">Base Datos II</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1px;">
+                    <span style="font-size:5.8px; color:#64748B;">Riesgo 22%</span>
+                    <span class="badge-low">BAJO</span>
+                  </div>
+                </div>
+                <div class="p-screen-card" style="margin-bottom:0;">
+                  <div style="font-weight:700; font-size:6.5px; color:#0F172A;">Redes &amp; Conect.</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1px;">
+                    <span style="font-size:5.8px; color:#64748B;">Riesgo 18%</span>
+                    <span class="badge-low">BAJO</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phone 2: Risk Screen & Chatbot Preview -->
+            <div class="phone-mockup">
+              <div class="phone-notch"></div>
+              <div class="phone-screen" style="align-items:center;">
+                <div style="width:17px; height:17px; border-radius:50%; background:#0284C7; color:#FFF; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:7.5px; margin:1px 0;">G</div>
+                <div style="font-weight:800; font-size:6.8px; color:#0F172A;">G. Paucar</div>
+                <div style="font-size:5.2px; color:#64748B; margin-bottom:1.5px;">FISI - UNMSM</div>
+                
+                <div style="width:100%; background:#FFF; border:1px solid #E2E8F0; border-radius:4px; padding:2px; text-align:center;">
+                  <div style="font-weight:800; font-size:10px; color:#DC2626; line-height:1;">84%</div>
+                  <div style="font-size:5.2px; font-weight:700; color:#DC2626;">Riesgo Crítico</div>
+                  <div style="font-size:4.8px; color:#64748B;">IC: 78–91% (H6)</div>
+                </div>
+
+                <div style="margin-top:2px; width:100%; background:#EFF6FF; border-radius:2px; padding:1.5px; text-align:center; font-size:5px; font-weight:700; color:#1E40AF;">
+                  Factores SHAP
+                </div>
+                <div style="margin-top:1.5px; width:100%; background:#F0FDF4; border-radius:2px; padding:1.5px; text-align:center; font-size:5px; font-weight:700; color:#166534;">
+                  💬 Tutor IA Gemini
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Risk Gauge Card (Heurística H6 de Nielsen) -->
+          <div class="risk-gauge-card">
+            <div class="gauge-label">Risk Gauge</div>
+            <svg width="84" height="40" viewBox="0 0 100 52" style="margin-top:1px;">
+              <path d="M 12 48 A 38 38 0 0 1 88 48" fill="none" stroke="#E2E8F0" stroke-width="11" stroke-linecap="round"/>
+              <path d="M 12 48 A 38 38 0 0 1 36 17" fill="none" stroke="#22C55E" stroke-width="11" stroke-linecap="round"/>
+              <path d="M 38 16 A 38 38 0 0 1 62 16" fill="none" stroke="#EAB308" stroke-width="11"/>
+              <path d="M 64 17 A 38 38 0 0 1 88 48" fill="none" stroke="#EF4444" stroke-width="11" stroke-linecap="round"/>
+              <circle cx="50" cy="48" r="4.5" fill="#0B2545"/>
+              <line x1="50" y1="48" x2="76" y2="26" stroke="#0B2545" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div class="gauge-sublabel">Semáforo H6 &amp; Intervalo de Confianza</div>
+          </div>
+        </div>
+
+        <!-- Right Subcolumn: Componentes de UI Flutter con Wireframe y Funcionalidades -->
+        <div class="ui-components-box">
+          <div>
+            <div class="flutter-brand-wrap">
+              <svg width="18" height="22" viewBox="0 0 166 202" fill="none">
+                <path d="M166 74L92.2 0H33.8L80.9 47.1L166 74Z" fill="#40C4FF"/>
+                <path d="M80.9 47.1L0 128H58.4L109.8 77.2L80.9 47.1Z" fill="#02569B"/>
+                <path d="M58.4 128L0 186.4L15.6 202L90 128H58.4Z" fill="#01579B"/>
+                <path d="M166 128L109.8 77.2L92.2 94.8L128.4 131L92.2 167.2L109.8 184.8L166 128Z" fill="#00B0FF"/>
+              </svg>
+              <span>Flutter</span>
+            </div>
+            <div class="panel-title" style="font-size:13px; margin-top:2px; justify-content:center;">Componentes<br>de UI Flutter</div>
+          </div>
+
+          <!-- Wireframe layout mockup matching reference style -->
+          <div class="wf-layout-sketch">
+            <div class="wf-sidebar">
+              <div class="wf-side-dot"></div>
+              <div class="wf-side-dot"></div>
+              <div class="wf-side-dot"></div>
+            </div>
+            <div class="wf-main-content">
+              <div class="wf-bar" style="width:70%;"></div>
+              <div class="wf-bar" style="width:100%; height:12px; background:#E2E8F0;"></div>
+              <div style="display:flex; gap:2.5px;">
+                <div class="wf-bar" style="flex:1;"></div>
+                <div class="wf-bar" style="flex:1;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Funcionalidades Clave de la App -->
+          <div class="ui-features-list">
+            <div class="feature-pill-item active">
+              <span>🎯</span>
+              <div>Análisis de Riesgo &amp; SHAP</div>
+            </div>
+            <div class="feature-pill-item">
+              <span>🤖</span>
+              <div>Chatbot Tutor IA (Gemini)</div>
+            </div>
+            <div class="feature-pill-item">
+              <span>🎮</span>
+              <div>Gamificación (6 Rangos &amp; XP)</div>
+            </div>
+            <div class="feature-pill-item">
+              <span>🧠</span>
+              <div>Metacognición &amp; Diagnóstico</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Arrow Down to Provider -->
+      <div class="v-connector">
+        <svg width="13" height="13" viewBox="0 0 16 16">
+          <path d="M8 0 L8 12 M3 7 L8 12 L13 7" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Gestión de Estado con Provider -->
+      <div class="provider-panel">
+        <div>
+          <div class="panel-title" style="justify-content:flex-start; font-size:13px;">Gestión de Estado con Provider</div>
+          <div class="panel-subtitle" style="text-align:left;">ChangeNotifier · Inyección de Dependencias</div>
+          <div style="font-size:9.2px; font-weight:600; color:#1E3A8A; margin-top:2px;">
+            AuthVM · CoursesVM · RiesgoVM · TutorVM · MetacognitiveVM
+          </div>
+        </div>
+        <!-- Provider Icon Oficial -->
+        <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="9" fill="#02569B"/>
+          <path d="M14 24L24 14L34 24L24 34L14 24Z" fill="#40C4FF"/>
+          <path d="M24 20L28 24L24 28L20 24L24 20Z" fill="#FFFFFF"/>
+        </svg>
+      </div>
+
+      <!-- Arrow Down: Gestión vista -->
+      <div class="v-connector">
+        <div class="v-label">Gestión vista</div>
+        <svg width="13" height="11" viewBox="0 0 16 14">
+          <path d="M8 0 L8 10 M3 5 L8 10 L13 5" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Arquitectura MVVM -->
+      <div class="mvvm-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="panel-title" style="font-size:13px;">Arquitectura MVVM</div>
+          <!-- Overhead arch arrow labeled Modelo from Vista to Modelo -->
+          <div style="font-size:8.5px; font-weight:700; color:#475569; display:flex; align-items:center; gap:3px;">
+            <span>Modelo</span>
+            <svg width="38" height="9" viewBox="0 0 50 12" fill="none">
+              <path d="M 2 10 Q 25 0 48 10" stroke="#0B2545" stroke-width="1.8"/>
+              <polygon points="46,6 50,11 44,11" fill="#0B2545"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="mvvm-diagram-grid">
+          
+          <div class="mvvm-node">
+            <div>Vista</div>
+            <span>(View)</span>
+            <div style="border-top:1px dashed #CBD5E1; margin-top:5px; padding-top:4px; font-size:7.5px; color:#64748B;">
+              UI Flutter
+            </div>
+          </div>
+
+          <div class="mvvm-arrow-text">
+            <span>Vista</span>
+            <svg width="18" height="9" viewBox="0 0 22 12">
+              <path d="M3 6 L19 6 M6 2 L2 6 L6 10 M16 2 L20 6 L16 10" stroke="#0B2545" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+
+          <div class="mvvm-node vm">
+            <div>Modelo de Vista</div>
+            <span>(ViewModel)</span>
+            <!-- Sub-box Predicto / Servicios -->
+            <div style="border-top:1px dashed #93C5FD; margin-top:5px; padding-top:4px; font-size:7.5px; color:#1D4ED8;">
+              Estado Reactivo
+            </div>
+          </div>
+
+          <div class="mvvm-arrow-text">
+            <span>Modelo</span>
+            <svg width="18" height="9" viewBox="0 0 22 12">
+              <path d="M3 6 L19 6 M6 2 L2 6 L6 10 M16 2 L20 6 L16 10" stroke="#0B2545" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+
+          <div class="mvvm-node">
+            <div>Modelo</div>
+            <span>(Model)</span>
+            <div style="border-top:1px dashed #CBD5E1; margin-top:5px; padding-top:4px; font-size:7.5px; color:#64748B;">
+              Data &amp; DTO
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box underneath ViewModel inside MVVM matching reference -->
+        <div style="background:#F1F5F9; border:1.4px solid #0B2545; border-radius:6px; padding:5px 6px; text-align:center; display:flex; justify-content:space-around; align-items:center; font-size:9.2px; font-weight:700; color:#0B2545;">
+          <span>Modelos Locales</span>
+          <span style="color:#94A3B8;">|</span>
+          <span>Servicios API REST</span>
+          <span style="color:#94A3B8;">|</span>
+          <span>Caché Offline</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================== FLECHA GLOBAL 1 -> 2 (HTTPS / REST) ================== -->
+  <div class="g-arrow-col1-col2">
+    <div class="g-arrow-pill">HTTPS / REST</div>
+    <svg width="30" height="14" viewBox="0 0 30 14">
+      <line x1="5" y1="7" x2="25" y2="7" stroke="#0B2545" stroke-width="2.2"/>
+      <polygon points="6,3 1,7 6,11" fill="#0B2545"/>
+      <polygon points="24,3 29,7 24,11" fill="#0B2545"/>
+    </svg>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- COLUMNA 2: BACKEND Y MOTOR ML (FASTAPI Y PYTHON)              -->
+  <!-- ============================================================== -->
+  <div class="arch-column">
+    <div class="col-header">
+      <h2>Backend y Motor ML</h2>
+      <p>(FastAPI y Python)</p>
+    </div>
+
+    <div class="col-content">
+      
+      <!-- Servidor FastAPI -->
+      <div class="fastapi-panel">
+        <div>
+          <div class="panel-title" style="justify-content:flex-start; font-size:13.5px;">Servidor FastAPI</div>
+          <div class="panel-subtitle" style="text-align:left;">(FastAPI and Python · Uvicorn ASGI Server · Swagger /docs)</div>
+        </div>
+        <!-- FastAPI Logo Oficial -->
+        <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="48" fill="#009688"/>
+          <path d="M56 18L26 54H48L44 82L74 46H52L56 18Z" fill="#FFFFFF"/>
+        </svg>
+      </div>
+
+      <!-- Arrow Down: HTTPS / REST -->
+      <div class="v-connector">
+        <div class="v-label">HTTPS / REST</div>
+        <svg width="13" height="11" viewBox="0 0 16 14">
+          <path d="M8 0 L8 10 M3 5 L8 10 L13 5" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Enrutadores REST API con los 4 módulos -->
+      <div class="endpoints-panel">
+        <div class="panel-title" style="font-size:13px;">Enrutadores REST API (Endpoints)</div>
+        <div class="endpoints-grid">
+          <div class="ep-box">
+            <div>🔐 Auth &amp; Moodle Session</div>
+            <span>/api/auth/login</span>
+          </div>
+          <div class="ep-box">
+            <div>📊 Cursos &amp; Riesgo H6</div>
+            <span>/api/estudiantes/{id}/cursos</span>
+          </div>
+          <div class="ep-box">
+            <div>🤖 Chatbot Tutor IA</div>
+            <span>/api/tutor/chat</span>
+          </div>
+          <div class="ep-box">
+            <div>🎮 Gamificación &amp; XAI</div>
+            <span>/diagnostico · /predict</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow Down: HTTPS / REST -->
+      <div class="v-connector">
+        <div class="v-label">HTTPS / REST</div>
+        <svg width="13" height="11" viewBox="0 0 16 14">
+          <path d="M8 0 L8 10 M3 5 L8 10 L13 5" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Pipeline de Machine Learning & Servicios -->
+      <div class="ml-pipeline-panel">
+        <div class="pipeline-header">
+          <div>
+            <div class="panel-title" style="justify-content:flex-start; font-size:13px;">Pipeline de Machine Learning</div>
+            <div class="panel-subtitle" style="text-align:left;">(Scikit-Learn · Inferencia Predictiva &amp; Explicabilidad SHAP)</div>
+          </div>
+          <!-- Scikit-learn Logo Oficial -->
+          <svg width="36" height="24" viewBox="0 0 120 80" fill="none">
+            <ellipse cx="40" cy="40" rx="36" ry="30" fill="#3499CD"/>
+            <ellipse cx="80" cy="40" rx="36" ry="30" fill="#F89938"/>
+            <circle cx="60" cy="40" r="14" fill="#FFFFFF"/>
+            <text x="60" y="44" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="800" fill="#0B2545" text-anchor="middle">learn</text>
+          </svg>
+        </div>
+
+        <div class="pipeline-body-grid">
+          
+          <!-- Pasos Secuenciales del Modelo -->
+          <div class="pipeline-left-flow">
+            <div class="pipe-step-box">
+              Preprocesamiento de Datos
+              <span>StandardScaler (scaler.joblib)</span>
+            </div>
+            
+            <div style="align-self:center;">
+              <svg width="8" height="6" viewBox="0 0 10 8"><path d="M5 0 L5 6 M2 3 L5 6 L8 3" stroke="#0B2545" stroke-width="2" fill="none"/></svg>
+            </div>
+
+            <div class="pipe-step-box">
+              Extracción de 7 Métricas
+              <span>Telemetría de MoodleCloud</span>
+            </div>
+
+            <div style="align-self:center;">
+              <svg width="8" height="6" viewBox="0 0 10 8"><path d="M5 0 L5 6 M2 3 L5 6 L8 3" stroke="#0B2545" stroke-width="2" fill="none"/></svg>
+            </div>
+
+            <div class="pipe-step-box">
+              Inferencia del Modelo
+              <span>LogisticRegression (model.joblib)</span>
+            </div>
+          </div>
+
+          <!-- Flecha hacia la derecha -->
+          <div style="display:flex; justify-content:center;">
+            <svg width="14" height="12" viewBox="0 0 20 16">
+              <path d="M0 8 L14 8 M9 3 L15 8 L9 13" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+
+          <!-- Servicio de Predicción de Riesgo -->
+          <div class="pred-service-box">
+            <div class="pred-service-title">Servicio de Predicción de Riesgo</div>
+            <div class="pred-service-sub">Probabilidad + Coeficientes XAI</div>
+            <div class="pred-service-desc">
+              • Inferencia en tiempo real &lt; 50ms<br>
+              • Bandas H6 (Bajo, Moderado, Crítico)<br>
+              • Factores positivos y alertas de estudio
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Franja de Gamificación y Metacognición en Backend -->
+        <div class="gamif-meta-strip">
+          <span>🎮 Lógica de 6 Rangos &amp; XP (14 Semanas)</span>
+          <span>🧠 Registro de Revisiones Metacognitivas</span>
+        </div>
+      </div>
+
+      <!-- Arrow Down: Contexto / Auth -->
+      <div class="v-connector">
+        <svg width="13" height="11" viewBox="0 0 16 14">
+          <path d="M8 0 L8 10 M3 5 L8 10 L13 5" stroke="#0B2545" stroke-width="2.5" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Autenticación y Asistencia IA -->
+      <div class="auth-panel">
+        <div>
+          <div class="panel-title" style="justify-content:flex-start; font-size:13px;">Autenticación &amp; Orquestador LLM</div>
+          <div class="panel-subtitle" style="text-align:left;">Módulo de Token Moodle Web Services + Agente Gemini para el Chatbot</div>
+        </div>
+        <!-- Python Logo Oficial -->
+        <svg width="30" height="30" viewBox="0 0 128 128" fill="none">
+          <path d="M63.5 8C35.5 8 37.2 20.2 37.2 20.2L37.3 32.8H64.2V36.6H26.8C26.8 36.6 8 34.5 8 62.8C8 91.1 24.4 89.9 24.4 89.9H34.2V76.3C34.2 60.5 47.9 61 47.9 61H74.8C87.6 61 88.5 49.3 88.5 49.3V21.6C88.5 21.6 90.7 8 63.5 8ZM48.6 18.2C52 18.2 54.7 20.9 54.7 24.3C54.7 27.7 52 30.4 48.6 30.4C45.2 30.4 42.5 27.7 42.5 24.3C42.5 20.9 45.2 18.2 48.6 18.2Z" fill="#387EB8"/>
+          <path d="M64.5 120C92.5 120 90.8 107.8 90.8 107.8L90.7 95.2H63.8V91.4H101.2C101.2 91.4 120 93.5 120 65.2C120 36.9 103.6 38.1 103.6 38.1H93.8V51.7C93.8 67.5 80.1 67 80.1 67H53.2C40.4 67 39.5 78.7 39.5 78.7V106.4C39.5 106.4 37.3 120 64.5 120ZM79.4 109.8C76 109.8 73.3 107.1 73.3 103.7C73.3 100.3 76 97.6 79.4 97.6C82.8 97.6 85.5 100.3 85.5 103.7C85.5 107.1 82.8 109.8 79.4 109.8Z" fill="#FFE052"/>
+        </svg>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================== FLECHA GLOBAL 2 -> 3 TOP (Moodle) ================== -->
+  <div class="g-arrow-col2-col3-top">
+    <div class="g-arrow-pill">HTTPS / REST</div>
+    <svg width="30" height="14" viewBox="0 0 30 14">
+      <line x1="5" y1="7" x2="25" y2="7" stroke="#0B2545" stroke-width="2.2"/>
+      <polygon points="6,3 1,7 6,11" fill="#0B2545"/>
+      <polygon points="24,3 29,7 24,11" fill="#0B2545"/>
+    </svg>
+  </div>
+
+  <!-- ================== FLECHA GLOBAL 2 -> 3 BOTTOM (SQLite Elbow Arrow connecting Backend to SQLite Local) ================== -->
+  <div class="g-arrow-col2-col3-bottom">
+    <svg width="30" height="145" viewBox="0 0 30 145" fill="none">
+      <path d="M 0 6 L 10 6 Q 16 6 16 12 L 16 132 Q 16 138 22 138 L 27 138" stroke="#0B2545" stroke-width="2.2" fill="none"/>
+      <polygon points="24,134 29,138 24,142" fill="#0B2545"/>
+    </svg>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- COLUMNA 3: SERVICIOS EXTERNOS Y ALMACENAMIENTO                -->
+  <!-- ============================================================== -->
+  <div class="arch-column">
+    <div class="col-header">
+      <h2>Servicios Externos y Almacenamiento</h2>
+      <p>(MoodleCloud, Gemini &amp; SQLite Local)</p>
+    </div>
+
+    <div class="col-content">
+      
+      <!-- Integración MoodleCloud LMS & Gemini AI -->
+      <div class="moodle-panel">
+        <div class="panel-title" style="font-size:13px;">Integración MoodleCloud LMS</div>
+        
+        <div class="moodle-flow-row">
+          <!-- Server / DB Cylinders Icon -->
+          <svg width="32" height="40" viewBox="0 0 48 56" fill="none">
+            <ellipse cx="24" cy="10" rx="20" ry="7" fill="#0284C7" stroke="#0B2545" stroke-width="2.5"/>
+            <path d="M4 10 V24 C4 28 44 28 44 24 V10" fill="#38BDF8" stroke="#0B2545" stroke-width="2.5"/>
+            <path d="M4 24 V38 C4 42 44 42 44 38 V24" fill="#38BDF8" stroke="#0B2545" stroke-width="2.5"/>
+            <path d="M4 38 V50 C4 54 44 54 44 50 V38" fill="#38BDF8" stroke="#0B2545" stroke-width="2.5"/>
+          </svg>
+
+          <!-- Flechas ida y vuelta -->
+          <div class="moodle-arrows-col">
+            <div class="m-arrow-line">
+              <span>Calificaciones y Tareas</span>
+              <svg width="10" height="7" viewBox="0 0 16 10"><path d="M0 5 L12 5 M8 1 L13 5 L8 9" stroke="#0B2545" stroke-width="2" fill="none"/></svg>
+            </div>
+            <div class="m-arrow-line">
+              <svg width="10" height="7" viewBox="0 0 16 10"><path d="M16 5 L4 5 M8 1 L3 5 L8 9" stroke="#0B2545" stroke-width="2" fill="none"/></svg>
+              <span>Telemetría y Evaluaciones</span>
+            </div>
+            <div class="m-arrow-line">
+              <span>Estructura de Cursos LMS</span>
+              <svg width="10" height="7" viewBox="0 0 16 10"><path d="M0 5 L12 5 M8 1 L13 5 L8 9" stroke="#0B2545" stroke-width="2" fill="none"/></svg>
+            </div>
+          </div>
+
+          <!-- Moodle Logo Oficial con Birrete -->
+          <div style="display:flex; align-items:center;">
+            <svg width="86" height="32" viewBox="0 0 190 65" fill="none">
+              <path d="M15 22 L45 8 L75 22 L45 36 Z" fill="#F97316"/>
+              <path d="M25 27 L25 42 Q45 52 65 42 L65 27" fill="#EA580C"/>
+              <line x1="70" y1="23" x2="78" y2="38" stroke="#F97316" stroke-width="3"/>
+              <circle cx="78" cy="40" r="3" fill="#F97316"/>
+              <text x="50" y="50" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="#F97316">moodle</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Franja de Google Gemini LLM para el Tutor IA -->
+        <div class="gemini-llm-strip">
+          <span>✨ Google Gemini AI (LLM Cloud)</span>
+          <span>Motor Tutor Pedagógico y Estrategias</span>
+        </div>
+      </div>
+
+      <!-- Base de Datos SQLite Local -->
+      <div class="sqlite-panel">
+        <div class="sqlite-top-row">
+          <div>
+            <div class="panel-title" style="justify-content:flex-start; font-size:13.5px;">Base de Datos SQLite Local</div>
+            <div class="panel-subtitle" style="text-align:left;">(rumbo.db)</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="background:#E0F2FE; color:#0284C7; font-size:9px; font-weight:800; padding:1.5px 4.5px; border-radius:3.5px; border:1px solid #BAE6FD;">Modo WAL</span>
+            <!-- SQLite Official Logo -->
+            <svg width="64" height="22" viewBox="0 0 140 48" fill="none">
+              <path d="M8 38 C35 5 75 5 112 14 C82 24 52 34 8 38 Z" fill="#003B57"/>
+              <text x="56" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="22" fill="#003B57">SQLite</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 2x2 Tables Grid - Fills the entire SQLite card with ZERO empty space! -->
+        <div class="schema-tables-grid">
+          
+          <!-- Tabla 1: Estudiantes y Cursos -->
+          <div class="schema-card">
+            <div class="sc-header">Estudiantes &amp; Cursos</div>
+            <div class="sc-body">
+              <div class="sc-row">
+                <span class="sc-key pk">PK</span>
+                <span class="sc-val">id_estudiante, id_curso</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">UK</span>
+                <span class="sc-val">username, token_ws</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">nombre, moodle_id</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">docente, creditos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla 2: Métricas -->
+          <div class="schema-card">
+            <div class="sc-header">Telemetría (metricas)</div>
+            <div class="sc-body">
+              <div class="sc-row">
+                <span class="sc-key pk">PK ID</span>
+                <span class="sc-val">id_metrica (AI)</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">FK</span>
+                <span class="sc-val">id_curso, id_estudiante</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">dias_inactividad, slope</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">quizzes, tareas_pend</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla 3: Predicciones de Riesgo -->
+          <div class="schema-card">
+            <div class="sc-header">Predicciones (predicciones)</div>
+            <div class="sc-body">
+              <div class="sc-row">
+                <span class="sc-key pk">PK ID</span>
+                <span class="sc-val">id_prediccion (AI)</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">FK</span>
+                <span class="sc-val">id_curso, id_estudiante</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">probabilidad, nivel_h6</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">factores_xai_json</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla 4: Gamificación & Diagnósticos (Historial) -->
+          <div class="schema-card">
+            <div class="sc-header">Gamif &amp; Metacognición</div>
+            <div class="sc-body">
+              <div class="sc-row">
+                <span class="sc-key pk">PK ID</span>
+                <span class="sc-val">historial_accesos</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">dias_activos, racha_xp</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key pk">PK ID</span>
+                <span class="sc-val">revisiones_diagnostico</span>
+              </div>
+              <div class="sc-row">
+                <span class="sc-key">DAT</span>
+                <span class="sc-val">semana_lunes, logro_meta</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -23,11 +23,12 @@ flowchart LR
         subgraph TopCol1["Vistas y Componentes UI"]
             Phones["📱 Mockups de App<br/>• Asignaturas & Semáforo<br/>• Perfil & Tacómetro"]
             Gauge["🎯 Risk Gauge<br/>Tacómetro Heurística H6"]
-            UI["🎨 Componentes de UI Flutter<br/>• LiquidGlassNavBar<br/>• AppDrawer & TierAvatar<br/>• FactorCharts"]
+            UI["🎨 Componentes de UI Flutter<br/>• 🎯 Análisis de Riesgos & SHAP<br/>• 🤖 Chatbot Tutor IA (Gemini)<br/>• 🎮 Gamificación (6 Rangos & XP)<br/>• 🧠 Metacognición & Diagnóstico"]
         end
-        Provider["⚡ Gestión de Estado con Provider<br/>ChangeNotifier · DI · SharedPreferences (Tema)"]
+        Provider["⚡ Gestión de Estado con Provider<br/>ChangeNotifier · Inyección de Dependencias"]
         subgraph MVVM["🏛️ Arquitectura MVVM"]
-            View["Vista (View)<br/>Screens & Widgets"] <-->|Eventos / UI| VM["Modelo de Vista<br/>(ViewModel)"] <-->|DTOs / Datos| Model["Modelo<br/>(Model)"]
+            View["Vista (View)<br/>Screens & Widgets"] <-->|Vista| VM["Modelo de Vista<br/>(ViewModel)"] <-->|Modelo| Model["Modelo<br/>(Model)"]
+            SubModel["Modelos Locales | APIs REST | Caché Offline"]
         end
         TopCol1 --> Provider
         Provider -->|Gestión vista| MVVM
@@ -35,34 +36,36 @@ flowchart LR
 
     subgraph Col2["2. BACKEND Y MOTOR ML (FastAPI y Python)"]
         direction TB
-        FastAPI["⚡ Servidor FastAPI<br/>FastAPI & Uvicorn ASGI"]
-        Endpoints["🛣️ Enrutadores REST API (Endpoints)<br/>• /api/auth/login<br/>• /api/estudiantes/...<br/>• /api/predict · /tutor"]
+        FastAPI["⚡ Servidor FastAPI<br/>FastAPI & Uvicorn ASGI Server"]
+        Endpoints["🛣️ Enrutadores REST API (Endpoints)<br/>• 🔐 Auth: /api/auth/login<br/>• 📊 Cursos/Riesgo: /api/estudiantes/...<br/>• 🤖 Chatbot: /api/tutor/chat<br/>• 🎮 Gamif/Meta: /diagnostico"]
         subgraph ML["🤖 Pipeline de Machine Learning (Scikit-Learn)"]
-            P1["Preprocesamiento de Datos<br/>StandardScaler (scaler.joblib)"] --> P2["Extracción de Métricas<br/>Telemetría Moodle LMS"] --> P3["Inferencia del Modelo<br/>RandomForestClassifier (.pkl)"]
-            P2 & P3 --> P4["Servicio de Predicción de Riesgo<br/>Probabilidad + Valores SHAP (XAI)"]
+            P1["Preprocesamiento de Datos<br/>StandardScaler (scaler.joblib)"] --> P2["Extracción de 7 Métricas<br/>Telemetría MoodleCloud LMS"] --> P3["Inferencia del Modelo<br/>LogisticRegression (model.joblib)"]
+            P2 & P3 --> P4["Servicio de Predicción de Riesgo<br/>Probabilidad + Factores XAI (Coeficientes)<br/>Bandas H6 (Bajo, Moderado, Crítico)"]
+            Strip["🎮 6 Rangos & XP (14 Semanas) | 🧠 Revisiones Metacognitivas"]
         end
-        Auth["🔑 Autenticación<br/>Módulo: Sesión Moodle, validación Pydantic v2 y seguridad"]
+        Auth["🔑 Autenticación & Orquestador LLM<br/>Token Moodle WS + Agente Gemini Tutor IA"]
         FastAPI -->|HTTPS / REST| Endpoints
         Endpoints -->|Invocación| ML
-        Endpoints --> Auth
+        ML --> Auth
     end
 
     subgraph Col3["3. SERVICIOS EXTERNOS Y ALMACENAMIENTO"]
         direction TB
-        subgraph Moodle["☁️ Integración MoodleCloud LMS"]
-            MoodleSrv[(Servidor Moodle LMS)] <-->|Calificaciones, Tareas y Accesos| MoodleWS["Moodle Web Services<br/>moodle_mobile_app"]
+        subgraph Moodle["☁️ Integración MoodleCloud LMS & Gemini"]
+            MoodleSrv[(Servidor Moodle LMS)] <-->|Calificaciones y Telemetría| MoodleWS["Moodle Web Services"]
+            Gemini["✨ Google Gemini AI (LLM Cloud)<br/>Motor Tutor Pedagógico y Estrategias"]
         end
         subgraph SQLite["🗄️ Base de Datos SQLite Local (rumbo.db)"]
-            T1["Perfiles de Estudiantes<br/>(estudiantes)"]
-            T2["Métricas de Telemetría<br/>(metricas)"]
-            T3["Predicciones de Riesgo<br/>(predicciones)"]
+            T1["Perfiles (estudiantes)"]
+            T2["Telemetría (metricas)"]
+            T3["Predicciones (predicciones)"]
+            T4["Gamificación & Metacognición<br/>(accesos & revisiones)"]
         end
     end
 
-    %% Conexiones entre Columnas
-    Col1 <-->|HTTPS / REST| Endpoints
-    Endpoints <-->|HTTPS / REST| Moodle
-    Endpoints -->|Persistencia WAL| SQLite
+    Col1 <-->|HTTPS / REST| Col2
+    Col2 <-->|HTTPS / REST| Moodle
+    Col2 -->|SQLite Driver WAL| SQLite
 ```
 
 ---
@@ -99,9 +102,9 @@ flowchart LR
    - `/api/tutor/chat`: Asistente conversacional pedagógico para la autorregulación del estudio.
 3. **Pipeline de Machine Learning (Scikit-Learn)**:
    - **Preprocesamiento**: Normalización de las variables numéricas con `StandardScaler` (`scaler.joblib`).
-   - **Extracción de Métricas**: Obtención de variables conductuales (días de inactividad, margen de entrega, promedio y slope de notas).
-   - **Inferencia del Modelo**: Clasificador supervisado `RandomForestClassifier` (`random_forest_model.pkl`).
-   - **Servicio de Predicción de Riesgo & SHAP**: Cálculo del porcentaje de riesgo y atribución de factores positivos y negativos mediante XAI (*Explainable Artificial Intelligence*).
+   - **Extracción de Métricas**: Obtención de las 7 variables conductuales (días de inactividad, margen de entrega, promedio, slope de notas, tasa de pendientes y asistencias).
+   - **Inferencia del Modelo**: Clasificador supervisado `LogisticRegression` (`model.joblib`), seleccionado por su alta interpretabilidad y calibración probabilística.
+   - **Servicio de Predicción de Riesgo & XAI**: Cálculo de la probabilidad de rezago mediante la función sigmoide y atribución directa de factores protectores y de riesgo a partir de los coeficientes del modelo (Inteligencia Artificial Explicable).
 4. **Autenticación**:
    - Validación rigurosa de entradas y salidas mediante modelos **Pydantic v2**, manejo de cabeceras seguras y soporte de sesión offline (`DEMO`).
 

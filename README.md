@@ -31,7 +31,7 @@
 
 **RUMBO** es una plataforma móvil orientada a la **retención estudiantil y autorregulación del aprendizaje** en la educación superior. Se conecta directamente al aula virtual **Moodle LMS** (MoodleCloud / Moodle institucional) para:
 1. Extraer en tiempo real las métricas de interacción académica del estudiante (inactividad, entregas de tareas, notas de cuestionarios y frecuencia de acceso).
-2. Procesar estos indicadores mediante un modelo de **Machine Learning (Random Forest con explicabilidad SHAP)** para predecir oportunamente la probabilidad de riesgo de desaprobación o rezago.
+2. Procesar estos indicadores mediante un modelo de **Machine Learning (Regresión Logística con explicabilidad XAI)** para predecir oportunamente la probabilidad de riesgo de desaprobación o rezago.
 3. Brindar al estudiante alertas tempranas comprensibles, dashboards explicativos con gráficos visuales y herramientas metacognitivas con un sistema de gamificación progresivo.
 
 ---
@@ -49,7 +49,7 @@ sequenceDiagram
     participant Moodle as Aula Virtual Moodle LMS
     participant Backend as FastAPI (Backend Python)
     participant DB as SQLite WAL (rumbo.db)
-    participant ML as Pipeline Scikit-Learn (Random Forest + SHAP)
+    participant ML as Pipeline Scikit-Learn (Regresión Logística + XAI)
 
     Estudiante->>Backend: 1. POST /api/auth/login (codigo, password)
     Backend->>Moodle: 2. /login/token.php (servicio: moodle_mobile_app)
@@ -72,7 +72,7 @@ sequenceDiagram
 
 ### ¿Cómo calcula la IA el riesgo y los factores?
 1. **Vector de Características**: El backend toma las variables del alumno y las estandariza usando `StandardScaler` (`scaler.joblib`).
-2. **Clasificación**: El modelo `RandomForestClassifier` (`random_forest_model.pkl`) calcula la probabilidad exacta de riesgo ($P \in [0.0, 1.0]$).
+2. **Clasificación**: El modelo `LogisticRegression` (`model.joblib`) calcula la probabilidad exacta de riesgo ($P \in [0.0, 1.0]$) a través de la función sigmoide.
 3. **Bandas de Decisión**:
    - 🟢 **BAJO** (0% - 39%): Ritmo de estudio óptimo.
    - 🟡 **MODERADO** (40% - 59%): Señales de alerta temprana que conviene atender.
@@ -114,7 +114,7 @@ Para demostrarle al profesor Dr. Iván Petrlik que se cubrió la totalidad del t
 | **Sesión 4 Lab** | Consumo de API REST JSON (`http`) | Cliente HTTP en Dart con deserialización `fromJson` y modelos fuertemente tipados. | [`api_service.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/data/services/api_service.dart), [`course_model.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/data/models/course_model.dart) |
 | **Sesión 5 Lab** | Backend con **FastAPI** | Servidor ASGI con Uvicorn, rutas decoradas con `@app.get` y `@app.post`, esquemas Pydantic y Swagger. | [`Backend/main.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/main.py), [`Backend/app/routes/`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/routes/) |
 | **Sesión 6 Lab** | **SharedPreferences** (Persistencia Local) | Almacenamiento local de la preferencia de Modo Claro / Oscuro en disco sin bloquear la UI. | [`theme_viewmodel.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/lib/viewmodels/theme_viewmodel.dart), [`theme_viewmodel_test.dart`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Frontend/test/theme_viewmodel_test.dart) |
-| **Sesión 7 Lab** | Inteligencia Artificial y Despliegue en Render | Modelo de Machine Learning educativo (Random Forest + SHAP) y archivo de despliegue en la nube. | [`prediction_service.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/services/prediction_service.py), [`render.yaml`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/render.yaml) |
+| **Sesión 7 Lab** | Inteligencia Artificial y Despliegue en Render | Modelo de Machine Learning educativo (Regresión Logística + XAI) y archivo de despliegue en la nube. | [`ml_service.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/services/ml_service.py), [`render.yaml`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/render.yaml) |
 | **Diseño Móvil PPTX**| Arquitectura MVVM, DI y **SQLite** Relacional | MVVM con Provider, inyección de fakes en 62 pruebas unitarias y SQLite con claves foráneas. | [`rumbo.db`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/rumbo.db), [`database.py`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Backend/app/database.py) |
 
 ---
@@ -146,16 +146,20 @@ Frontend/lib/
 ```
 Backend/
 ├── app/
-│   ├── routes/                           # Endpoints REST (auth.py, cursos.py, predict.py)
-│   ├── services/                         # moodle_service.py, prediction_service.py
+│   ├── routes/                           # Endpoints REST (auth.py, cursos.py, predict.py, tutor.py)
+│   ├── services/                         # moodle_service.py, ml_service.py, data_service.py
 │   ├── database.py                       # Conexión SQLite WAL y esquema de 6 tablas
 │   ├── models.py                         # Esquemas de validación Pydantic v2
 │   └── main.py                           # Punto de entrada FastAPI con CORS
-├── ml_models/                            # Artefactos serializados (model.pkl, scaler.joblib)
+├── ml_models/                            # Artefactos serializados (model.joblib, scaler.joblib, features.joblib)
 ├── rumbo.db                              # Base de datos SQLite operativa
 ├── test_api.py                           # Suite de pruebas automatizadas del Backend (5/5)
 └── requirements.txt                      # Dependencias de Python (fastapi, scikit-learn, etc.)
 ```
+
+> 📄 **Diagramas Oficiales de Arquitectura para la Exposición**:
+> - 🏛️ **Arquitectura General del Sistema (3 Bloques)**: [`Docs/ARQUITECTURA_DE_LA_APP.md`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/ARQUITECTURA_DE_LA_APP.md) · Imagen: [`Docs/diagrama_arquitectura_app.png`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/diagrama_arquitectura_app.png)
+> - 🧩 **Diagrama Multicapa del Backend (C4 Componentes)**: [`Docs/DIAGRAMA_MULTICAPA_BACKEND.md`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/DIAGRAMA_MULTICAPA_BACKEND.md) · Imagen: [`Docs/diagrama_multicapa_backend.png`](file:///c:/Users/camil/Desktop/ProyectoMobileLV1.0/Docs/diagrama_multicapa_backend.png)
 
 ---
 
@@ -177,9 +181,9 @@ Consiste en **6 tablas relacionales**:
 
 ## 🤖 Modelo de Machine Learning y Explicabilidad XAI
 
-- **Algoritmo**: `RandomForestClassifier` supervisado + `StandardScaler`.
-- **Explicabilidad**: Valores SHAP (*SHapley Additive exPlanations*) que descomponen el riesgo en factores que aumentan la probabilidad (factores de riesgo) o la disminuyen (factores protectores).
-- **Entrenamiento**: Realizado con un dataset longitudinal de panel con 7,508 registros de interacción Moodle y validación cruzada.
+- **Algoritmo**: `LogisticRegression` supervisado (`C=1.0`, `max_iter=1000`) + `StandardScaler` (7 variables predictoras).
+- **Explicabilidad (XAI)**: Coeficientes ponderados ($\beta$) intrínsecos de la regresión logística que descomponen el riesgo de forma transparente en factores protectores ($\beta < 0$, como alto promedio y entregas anticipadas) y factores de riesgo ($\beta > 0$, como inactividad prolongada y tareas pendientes).
+- **Entrenamiento**: Realizado con un dataset longitudinal de panel con 7,500 registros calibrados a la escala académica 0–20 de la UNMSM y validación cruzada.
 - **Inferencia en Tiempo Real**: El backend recibe el ID del alumno, obtiene sus métricas de Moodle/BD, genera la predicción en $< 50\text{ ms}$ y la retorna formateada a Flutter.
 
 ---
