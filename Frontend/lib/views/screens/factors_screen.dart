@@ -4,12 +4,17 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/risk_detail_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/metacognitive_viewmodel.dart';
 import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../data/services/sync_coordinator.dart';
 import '../widgets/factor_charts/day_circles_chart.dart';
 import '../widgets/factor_charts/quiz_trend_chart.dart';
 import '../widgets/factor_charts/tasks_timeline_chart.dart';
 import '../widgets/factor_charts/weekly_logins_chart.dart';
+import '../widgets/liquid_glass_nav_bar.dart';
+import 'main_navigation_screen.dart';
+import 'tutor_screen.dart';
 
 /// Pantalla explicativa: "¿Por qué este resultado?" con factores y reflexión.
 class FactorsScreen extends StatefulWidget {
@@ -31,7 +36,14 @@ class _FactorsScreenState extends State<FactorsScreen> {
       context.read<RiesgoViewModel>().loadDetail(
         widget.courseId,
         studentId: authStudent?.idEstudiante ?? 'EST-0001',
+        refresh: false,
       );
+      try {
+        Provider.of<MetacognitiveViewModel>(context, listen: false)
+            .registrarRevisionDiagnostico(widget.courseId, studentId: authStudent?.idEstudiante);
+      } catch (_) {
+        // En pruebas aisladas donde no se inyecta MetacognitiveViewModel
+      }
     });
   }
 
@@ -42,9 +54,10 @@ class _FactorsScreenState extends State<FactorsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
+      extendBody: true,
       appBar: AppBar(
         title: Text(
-          'Explicabilidad (Nielsen H6)',
+          'Diagnóstico y Factores',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 16,
@@ -62,19 +75,35 @@ class _FactorsScreenState extends State<FactorsScreen> {
               onPressed: () => themeVm.toggleTheme(),
             ),
           ),
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondaryOf(context)),
+            tooltip: 'Actualizar factores',
+            onPressed: () {
+              AppSyncCoordinator.syncAll(
+                context,
+                activeCourseId: widget.courseId,
+                refreshMoodle: true,
+              );
+            },
+          ),
         ],
       ),
       body: detail == null
           ? const Center(child: CircularProgressIndicator())
-          : _FactorsBody(detail: detail),
+          : _FactorsBody(detail: detail, courseId: widget.courseId),
+      bottomNavigationBar: LiquidGlassNavBar(
+        currentIndex: 0,
+        onTap: (index) => MainNavigationScreen.switchToTab(context, index),
+      ),
     );
   }
 }
 
 class _FactorsBody extends StatelessWidget {
   final RiskDetailResponse detail;
+  final String courseId;
 
-  const _FactorsBody({required this.detail});
+  const _FactorsBody({required this.detail, required this.courseId});
 
   @override
   Widget build(BuildContext context) {
@@ -84,25 +113,35 @@ class _FactorsBody extends StatelessWidget {
       return _SinFactores(detail: detail);
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      child: Column(
+    return RefreshIndicator(
+      color: AppColors.brand,
+      onRefresh: () async {
+        await AppSyncCoordinator.syncAll(
+          context,
+          activeCourseId: courseId,
+          refreshMoodle: true,
+        );
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '¿Por qué ${detail.porcentajeRiesgo} %?',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
+            detail.cleanNombreCurso,
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 20),
@@ -117,6 +156,7 @@ class _FactorsBody extends StatelessWidget {
                 factor: f,
                 color: AppColors.riskHigh,
                 chart: _chartFor(f),
+                courseName: detail.cleanNombreCurso,
               ),
             ),
           ),
@@ -129,6 +169,8 @@ class _FactorsBody extends StatelessWidget {
               child: _FactorCard(
                 factor: f,
                 color: AppColors.riskLow,
+                chart: _chartFor(f),
+                courseName: detail.cleanNombreCurso,
               ),
             ),
           ),
@@ -136,21 +178,58 @@ class _FactorsBody extends StatelessWidget {
           _ReflectionCard(opciones: factores.reflexionOpciones),
           const SizedBox(height: 20),
           _CuestionarDatos(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TutorScreen(
+                    initialCourseId: detail.idCurso,
+                    initialCourseName: detail.cleanNombreCurso,
+                  ),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandSoftOf(context),
+                foregroundColor: AppColors.brand,
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.smart_toy_outlined, size: 20),
+              label: const Text(
+                'Consultar plan de mejora con Tutor IA',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           FilledButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Abriendo el curso en Moodle...')),
               );
             },
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
             child: const Text('Abrir curso en Moodle'),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _chartFor(RiskFactor factor) {
+  Widget? _chartFor(RiskFactor factor) {
+    if (factor.chartValues.isEmpty || factor.chartType == 'none') {
+      return null;
+    }
     switch (factor.chartType) {
       case 'day_circles':
         return DayCirclesChart(values: factor.chartValues);
@@ -161,7 +240,7 @@ class _FactorsBody extends StatelessWidget {
       case 'weekly_logins':
         return WeeklyLoginsChart(values: factor.chartValues);
       default:
-        return const SizedBox.shrink();
+        return null;
     }
   }
 }
@@ -177,7 +256,7 @@ class _HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.brandSoft,
+        color: AppColors.brandSoftOf(context),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -185,9 +264,9 @@ class _HeroCard extends StatelessWidget {
         children: [
           Text(
             'Basado en tus ${factores.periodo} de actividad en Moodle.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 12),
@@ -207,12 +286,12 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'Todo esto depende de hábitos que puedes cambiar: si cambian, '
             'la estimación también.',
             style: TextStyle(
               fontSize: 13.5,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -263,10 +342,10 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+        color: AppColors.textPrimaryOf(context),
       ),
     );
   }
@@ -276,18 +355,360 @@ class _FactorCard extends StatelessWidget {
   final RiskFactor factor;
   final Color color;
   final Widget? chart;
+  final String courseName;
 
-  const _FactorCard({required this.factor, required this.color, this.chart});
+  const _FactorCard({
+    required this.factor,
+    required this.color,
+    this.chart,
+    this.courseName = '',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasTareas = factor.clave == 'tareas' && factor.tareas.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderOf(context)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: hasTareas ? () => _mostrarDetalleTareasModal(context, factor, courseName) : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        factor.titulo,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimaryOf(context),
+                        ),
+                      ),
+                    ),
+                    if (hasTareas)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 22,
+                        color: AppColors.textSecondaryOf(context),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 18),
+                  child: Text(
+                    factor.subtitulo,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ),
+                if (chart != null) ...[
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: chart!,
+                  ),
+                ],
+                if (hasTareas) ...[
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoftOf(context),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 14,
+                            color: AppColors.brand,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Ver detalle de cada tarea (${factor.tareas.length})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: AppColors.brand,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal Bottom Sheet moderno con el desglose de tareas, estados y calificaciones
+void _mostrarDetalleTareasModal(BuildContext context, RiskFactor factor, String courseName) {
+  final tareas = factor.tareas;
+  final entregadas = tareas.where((t) => t.estaEntregada).length;
+  final pendientes = tareas.where((t) => t.estaPendiente).length;
+  final vencidas = tareas.where((t) => t.estaVencida).length;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      final surfaceColor = AppColors.surfaceOf(ctx);
+      final textPrimary = AppColors.textPrimaryOf(ctx);
+      final textSecondary = AppColors.textSecondaryOf(ctx);
+      final borderColor = AppColors.borderOf(ctx);
+      final bgColor = AppColors.backgroundOf(ctx);
+
+      return Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+        ),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.20),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Indicador de arrastre superior
+              const SizedBox(height: 12),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Encabezado
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Detalle de Tareas',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            courseName.isNotEmpty ? courseName : 'Curso en Moodle',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, color: textSecondary),
+                      onPressed: () => Navigator.pop(ctx),
+                      tooltip: 'Cerrar',
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Badges de resumen rápido
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _ModalBadge(
+                      label: '$entregadas entregada${entregadas != 1 ? 's' : ''}',
+                      color: AppColors.riskLow,
+                      icon: Icons.check_circle_rounded,
+                    ),
+                    if (pendientes > 0) ...[
+                      const SizedBox(width: 8),
+                      _ModalBadge(
+                        label: '$pendientes pendiente${pendientes != 1 ? 's' : ''}',
+                        color: AppColors.riskMedium,
+                        icon: Icons.schedule_rounded,
+                      ),
+                    ],
+                    if (vencidas > 0) ...[
+                      const SizedBox(width: 8),
+                      _ModalBadge(
+                        label: '$vencidas vencida${vencidas != 1 ? 's' : ''}',
+                        color: AppColors.riskHigh,
+                        icon: Icons.warning_amber_rounded,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+              Divider(color: borderColor, height: 1),
+
+              // Lista de tareas
+              Flexible(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: tareas.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, index) {
+                    final t = tareas[index];
+                    return _TaskItemCard(
+                      task: t,
+                      bgColor: bgColor,
+                      borderColor: borderColor,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ModalBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  const _ModalBadge({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskItemCard extends StatelessWidget {
+  final TaskDetailItem task;
+  final Color bgColor;
+  final Color borderColor;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  const _TaskItemCard({
+    required this.task,
+    required this.bgColor,
+    required this.borderColor,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color statusColor;
+    final String statusLabel;
+    final IconData statusIcon;
+
+    if (task.estaEntregada) {
+      statusColor = AppColors.riskLow;
+      statusLabel = 'Entregada';
+      statusIcon = Icons.check_circle_rounded;
+    } else if (task.estaVencida) {
+      statusColor = AppColors.riskHigh;
+      statusLabel = 'Vencida';
+      statusIcon = Icons.warning_amber_rounded;
+    } else {
+      statusColor = AppColors.riskMedium;
+      statusLabel = 'Pendiente';
+      statusIcon = Icons.schedule_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,43 +716,115 @@ class _FactorCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
+              Icon(statusIcon, size: 18, color: statusColor),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  factor.titulo,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  task.nombre,
+                  style: TextStyle(
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.only(left: 18),
-            child: Text(
-              factor.subtitulo,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
+            padding: const EdgeInsets.only(left: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (task.fechaLimite != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_outlined, size: 13, color: textSecondary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Límite: ${task.fechaLimite}',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.fechaEntrega != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.upload_file_outlined, size: 13, color: AppColors.riskLow),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Entregado: ${task.fechaEntrega}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.riskLow),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.calificacion != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Calificación: ${task.calificacion}',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (task.estaEntregada)
+                  Row(
+                    children: [
+                      Icon(Icons.hourglass_top_rounded, size: 13, color: textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Calificación: Pendiente de corrección por docente',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (task.estaVencida)
+                  Row(
+                    children: [
+                      Icon(Icons.cancel_outlined, size: 13, color: AppColors.riskHigh),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Sin entrega registrada en Moodle',
+                        style: TextStyle(fontSize: 12, color: AppColors.riskHigh),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
-          if (chart != null) ...[
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.only(left: 18),
-              child: chart!,
-            ),
-          ],
         ],
       ),
     );
@@ -349,25 +842,25 @@ class _ReflectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '¿Qué te está costando más?',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Tu respuesta nos ayuda a acompañarte mejor (solo tú la ves).',
-            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12.5, color: AppColors.textMutedOf(context)),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -375,9 +868,20 @@ class _ReflectionCard extends StatelessWidget {
             runSpacing: 8,
             children: opciones.map((op) {
               return ActionChip(
-                label: Text(op),
-                backgroundColor: AppColors.neutralSoft,
-                side: const BorderSide(color: AppColors.border),
+                label: Text(
+                  op,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                backgroundColor: AppColors.backgroundOf(context),
+                side: BorderSide(color: AppColors.borderOf(context)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -416,30 +920,63 @@ class _CuestionarDatos extends StatelessWidget {
   }
 
   void _mostrarDialogo(BuildContext context) {
-    showDialog<void>(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('¿Algún dato no cuadra?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Cuéntanos qué ves distinto y revisaremos la estimación.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            SizedBox(height: 12),
-            _MotivoOpcion('Ya entregué una tarea que figura pendiente'),
-            _MotivoOpcion('Entré al curso y no se refleja mi actividad'),
-            _MotivoOpcion('Mi nota registrada no es la correcta'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+      backgroundColor: AppColors.surfaceOf(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderOf(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '¿Algún dato no cuadra?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Cuéntanos qué ves distinto y revisaremos la estimación con el servidor.',
+                style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const _MotivoOpcion('Ya entregué una tarea que figura pendiente'),
+              const _MotivoOpcion('Entré al curso y no se refleja mi actividad'),
+              const _MotivoOpcion('Mi nota registrada no es la correcta'),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.brand,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Entendido'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -459,7 +996,10 @@ class _MotivoOpcion extends StatelessWidget {
           const Icon(Icons.radio_button_unchecked, size: 18),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(texto, style: const TextStyle(fontSize: 13.5)),
+            child: Text(
+              texto,
+              style: TextStyle(fontSize: 13.5, color: AppColors.textPrimaryOf(context)),
+            ),
           ),
         ],
       ),
@@ -475,24 +1015,24 @@ class _SinFactores extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Sin estimación',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            detail.nombreCurso,
-            style: const TextStyle(
+            detail.cleanNombreCurso,
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
           ),
           const SizedBox(height: 40),
@@ -504,22 +1044,22 @@ class _SinFactores extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Text(
               'Sin factores calculados aún',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          const Center(
+          Center(
             child: Text(
               'Necesitamos más actividad tuya en el curso para explicarte la estimación.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondaryOf(context)),
             ),
           ),
         ],

@@ -1,19 +1,35 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
+from datetime import datetime, timedelta
 import json
+import logging
 from app.models import (
     StudentCoursesResponse,
     CourseRiskSummary,
     RiskDistributionSummary,
     RiskDetailResponse,
-    MetacognitiveStat
+    MetacognitiveStat,
+    RiskFactorModel,
+    FactoresBundleModel,
+    TaskItemModel,
+    DiagnosticReviewsResponse
 )
 from app.database import get_db_connection
+from app.services.moodle_service import moodle_service
+
+logger = logging.getLogger("cursos_route")
 
 router = APIRouter(prefix="/api/estudiantes", tags=["Cursos y Riesgo Académico"])
 
 @router.get("/{id_estudiante}/cursos", response_model=StudentCoursesResponse)
-def get_student_courses(id_estudiante: str):
+def get_student_courses(id_estudiante: str, refresh: bool = False):
+    # Sincronización en vivo con MoodleCloud solo si se solicita explícitamente (ej. pull-to-refresh)
+    if refresh:
+        try:
+            moodle_service.sync_student_by_id(id_estudiante, force=True)
+        except Exception as e:
+            logger.warning(f"Sincronización Moodle omitida en cursos: {e}")
+
     conn = get_db_connection()
     try:
         cur = conn.cursor()
@@ -50,18 +66,29 @@ def get_student_courses(id_estudiante: str):
 
         rows = cur.fetchall()
 
-        # Si no hay cursos para este estudiante, intentar buscar los cursos más recientes en BD
+        # Si no hay cursos para este estudiante, sincronizar directamente desde Moodle
         if not rows:
-            cur.execute("""
-            SELECT 
-                c.id_curso, c.nombre, c.codigo, c.creditos, c.docente, c.fecha_estimacion,
-                p.probabilidad, p.porcentaje, p.nivel_riesgo
-            FROM cursos c
-            LEFT JOIN predicciones p ON c.id_curso = p.id_curso
-            GROUP BY c.id_curso
-            ORDER BY p.porcentaje DESC;
-            """)
-            rows = cur.fetchall()
+            try:
+                moodle_service.sync_student_by_id(est_id, force=True)
+                cur.execute("""
+                SELECT 
+                    c.id_curso,
+                    c.nombre,
+                    c.codigo,
+                    c.creditos,
+                    c.docente,
+                    c.fecha_estimacion,
+                    p.probabilidad,
+                    p.porcentaje,
+                    p.nivel_riesgo
+                FROM cursos c
+                LEFT JOIN predicciones p ON c.id_curso = p.id_curso AND c.id_estudiante = p.id_estudiante
+                WHERE c.id_estudiante = ?
+                ORDER BY p.id DESC;
+                """, (est_id,))
+                rows = cur.fetchall()
+            except Exception as se:
+                logger.warning(f"Error sincronizando cursos faltantes para {est_id}: {se}")
     finally:
         conn.close()
 
@@ -118,7 +145,14 @@ def get_student_courses(id_estudiante: str):
     )
 
 @router.get("/{id_estudiante}/cursos/{id_curso}/riesgo", response_model=RiskDetailResponse)
-def get_course_risk_detail(id_estudiante: str, id_curso: str):
+def get_course_risk_detail(id_estudiante: str, id_curso: str, refresh: bool = False):
+    # Sincronización en vivo con MoodleCloud solo si se solicita explícitamente (ej. pull-to-refresh en detalle)
+    if refresh:
+        try:
+            moodle_service.sync_student_by_id(id_estudiante, force=True)
+        except Exception as e:
+            logger.warning(f"Sincronización Moodle omitida en detalle: {e}")
+
     conn = get_db_connection()
     try:
         cur = conn.cursor()
@@ -129,6 +163,18 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
         if not curso:
             cur.execute("SELECT * FROM cursos WHERE id_curso = ? LIMIT 1;", (id_curso,))
             curso = cur.fetchone()
+
+        # Si el curso aún no está en SQLite, sincronizar una vez como recuperación
+        if not curso and not refresh:
+            try:
+                moodle_service.sync_student_by_id(id_estudiante, force=True)
+                cur.execute("SELECT * FROM cursos WHERE id_curso = ? AND id_estudiante = ? LIMIT 1;", (id_curso, id_estudiante))
+                curso = cur.fetchone()
+                if not curso:
+                    cur.execute("SELECT * FROM cursos WHERE id_curso = ? LIMIT 1;", (id_curso,))
+                    curso = cur.fetchone()
+            except Exception:
+                pass
 
         if not curso:
             raise HTTPException(
@@ -160,38 +206,171 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
     finally:
         conn.close()
 
-    # Construir métricas metacognitivas
+    # Construir métricas metacognitivas completas
     metricas_list: List[MetacognitiveStat] = []
     if metrica:
         dias = metrica["dias_inactividad"]
         tareas_tot = metrica["tareas_totales"]
         tareas_pen = metrica["tareas_pendientes"]
         prom = metrica["promedio_historico"]
+        met_keys = metrica.keys()
+        tend = metrica["tendencia_calificaciones"] if "tendencia_calificaciones" in met_keys else 0.0
+        margen = metrica["margen_entrega_horas"] if "margen_entrega_horas" in met_keys else 24.0
+        asist_f = metrica["asistencia_formal"] if "asistencia_formal" in met_keys else 0.85
+        asist_v = metrica["asistencia_virtual"] if "asistencia_virtual" in met_keys else 0.75
 
+        # 1. Inactividad
+        desc_inact = "Accedió hoy al curso en Moodle." if dias == 0 else f"Hace {dias} día{'s' if dias != 1 else ''} sin ingresar a este curso."
         metricas_list.append(MetacognitiveStat(
             clave="inactividad",
             titulo="Días sin entrar al sistema",
             valor=str(dias),
             unidad="días",
             estado="critico" if dias > 4 else ("alerta" if dias > 2 else "ok"),
-            descripcion="Frecuencia de acceso al aula virtual."
+            descripcion=desc_inact
         ))
 
-        metricas_list.append(MetacognitiveStat(
-            clave="promedio",
-            titulo="Promedio acumulado",
-            valor=f"{prom:.1f}",
-            unidad="/ 20",
-            estado="ok" if prom >= 13 else ("alerta" if prom >= 11 else "critico"),
-            descripcion="Notas de evaluaciones y cuestionarios."
-        ))
+        # 2. Promedio
+        if prom is None:
+            metricas_list.append(MetacognitiveStat(
+                clave="promedio",
+                titulo="Promedio en evaluaciones",
+                valor="Sin notas",
+                unidad="",
+                estado="ok",
+                descripcion="Aún no se registran calificaciones en Moodle."
+            ))
+        else:
+            metricas_list.append(MetacognitiveStat(
+                clave="promedio",
+                titulo="Promedio acumulado",
+                valor=f"{prom:.1f}",
+                unidad="/ 20",
+                estado="ok" if prom >= 13.5 else ("alerta" if prom >= 10.5 else "critico"),
+                descripcion="Notas de evaluaciones y cuestionarios."
+            ))
+
+        # 3. Tendencia
+        if prom is None:
+            metricas_list.append(MetacognitiveStat(
+                clave="tendencia",
+                titulo="Tendencia de notas (Slope)",
+                valor="Sin historial",
+                unidad="",
+                estado="ok",
+                descripcion="Se calculará con 2 o más calificaciones."
+            ))
+        else:
+            metricas_list.append(MetacognitiveStat(
+                clave="tendencia",
+                titulo="Tendencia de notas (Slope)",
+                valor=f"+{tend:.2f}" if tend > 0 else f"{tend:.2f}",
+                unidad="pts/corte",
+                estado="ok" if tend >= 0.05 else ("alerta" if tend >= -0.2 else "critico"),
+                descripcion="Inclinación y evolución de calificaciones."
+            ))
+
+        # 4. Tareas pendientes (sin inventar números falsos)
+        if tareas_tot == 0:
+            val_entregas = "0 de 0"
+            estado_entregas = "ok"
+            desc_entregas = "No hay tareas programadas en Moodle."
+        elif tareas_pen == 0:
+            val_entregas = f"0 de {tareas_tot}"
+            estado_entregas = "ok"
+            desc_entregas = "Todas las tareas han sido entregadas."
+        else:
+            val_entregas = f"{tareas_pen} de {tareas_tot}"
+            estado_entregas = "critico" if margen < 0 else "alerta"
+            desc_entregas = "Tareas pendientes de entrega en Moodle."
 
         metricas_list.append(MetacognitiveStat(
             clave="entregas",
             titulo="Tareas pendientes",
-            valor=f"{tareas_pen} de {tareas_tot}",
-            estado="alerta" if tareas_pen > 0 else "ok",
-            descripcion="Entregas registradas en Moodle."
+            valor=val_entregas,
+            estado=estado_entregas,
+            descripcion=desc_entregas
+        ))
+
+        # Contar tareas vencidas vs pendientes desde factores_json oficial de Moodle
+        vencidas_count = 0
+        pendientes_count = 0
+        if pred and pred["factores_json"]:
+            try:
+                raw_f = json.loads(pred["factores_json"])
+                for f in raw_f:
+                    if f.get("clave") == "tareas":
+                        for t in f.get("tareas", []):
+                            est = t.get("estado")
+                            if est == "vencida":
+                                vencidas_count += 1
+                            elif est == "pendiente":
+                                pendientes_count += 1
+            except Exception:
+                pass
+
+        # Fallback de coherencia si aún no hay factores_json
+        if vencidas_count == 0 and pendientes_count == 0 and tareas_pen > 0:
+            if margen <= -40.0:
+                vencidas_count = tareas_pen
+            else:
+                pendientes_count = tareas_pen
+
+        # 5. Estado de entregas: Total (p. ej. 0 de 3) y especificación (Completadas, pendientes, vencidas)
+        if tareas_tot == 0:
+            val_margen = "0 de 0 (Completadas)"
+            estado_margen = "ok"
+            desc_margen = "Sin tareas programadas en Moodle."
+        elif vencidas_count == 0 and pendientes_count == 0 and tareas_pen == 0:
+            val_margen = f"0 de {tareas_tot} (Completadas)"
+            estado_margen = "ok"
+            desc_margen = "Todas las tareas han sido entregadas en Moodle."
+        elif vencidas_count > 0 and pendientes_count > 0:
+            val_margen = f"{tareas_pen} de {tareas_tot} ({vencidas_count} vencida{'s' if vencidas_count > 1 else ''} · {pendientes_count} pendiente{'s' if pendientes_count > 1 else ''})"
+            estado_margen = "critico"
+            desc_margen = f"Tienes {vencidas_count} tarea{'s' if vencidas_count > 1 else ''} con fecha límite vencida y {pendientes_count} pendiente{'s' if pendientes_count > 1 else ''} en Moodle."
+        elif vencidas_count > 0:
+            val_margen = f"{vencidas_count} de {tareas_tot} ({vencidas_count} vencida{'s' if vencidas_count > 1 else ''})"
+            estado_margen = "critico"
+            desc_margen = f"Tienes {vencidas_count} tarea{'s' if vencidas_count > 1 else ''} con fecha límite vencida sin entregar en Moodle."
+        else:
+            val_margen = f"{pendientes_count} de {tareas_tot} ({pendientes_count} pendiente{'s' if pendientes_count > 1 else ''})"
+            estado_margen = "alerta"
+            desc_margen = f"Tienes {pendientes_count} tarea{'s' if pendientes_count > 1 else ''} pendiente{'s' if pendientes_count > 1 else ''} por entregar en Moodle."
+
+        metricas_list.append(MetacognitiveStat(
+            clave="procrastinacion",
+            titulo="Tareas pendientes",
+            valor=val_margen,
+            estado=estado_margen,
+            descripcion=desc_margen
+        ))
+
+        # 6. Asistencia formal
+        if asist_f is None:
+            metricas_list.append(MetacognitiveStat(
+                clave="asistencia_formal",
+                titulo="Asistencia a sesiones",
+                valor="Sin registro",
+                estado="ok",
+                descripcion="El docente aún no ha registrado asistencia en Moodle."
+            ))
+        else:
+            metricas_list.append(MetacognitiveStat(
+                clave="asistencia_formal",
+                titulo="Asistencia a sesiones",
+                valor=f"{int(asist_f * 100)}%",
+                estado="ok" if asist_f >= 0.8 else ("alerta" if asist_f >= 0.7 else "critico"),
+                descripcion="Asistencia registrada en módulo de clases."
+            ))
+
+        # 7. Presencia virtual
+        metricas_list.append(MetacognitiveStat(
+            clave="asistencia_virtual",
+            titulo="Presencia virtual semanal",
+            valor=f"{int(asist_v * 100)}%",
+            estado="ok" if asist_v >= 0.7 else ("alerta" if asist_v >= 0.4 else "critico"),
+            descripcion="Constancia de estudio en la plataforma."
         ))
     else:
         metricas_list.append(MetacognitiveStat(
@@ -202,6 +381,57 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
             estado="critico",
             descripcion="Sin accesos recientes."
         ))
+
+    # Construir FactoresBundle (XAI Nielsen H6)
+    factores_bundle = None
+    if pred and pred["factores_json"]:
+        try:
+            raw_factores = json.loads(pred["factores_json"])
+            riesgos_list = []
+            favorables_list = []
+            for item in raw_factores:
+                tareas_raw = item.get("tareas", [])
+                tareas_models = [
+                    TaskItemModel(
+                        id=int(t.get("id", 0)),
+                        nombre=str(t.get("nombre", "Tarea")),
+                        estado=str(t.get("estado", "pendiente")),
+                        fecha_limite=t.get("fecha_limite"),
+                        calificacion=t.get("calificacion"),
+                        fecha_entrega=t.get("fecha_entrega")
+                    )
+                    for t in tareas_raw if isinstance(t, dict)
+                ]
+                f_model = RiskFactorModel(
+                    clave=item.get("clave", ""),
+                    titulo=item.get("titulo", ""),
+                    subtitulo=item.get("subtitulo", ""),
+                    impacto=item.get("impacto", "reduce"),
+                    influencia=item.get("influencia", 1),
+                    chartType=item.get("chartType"),
+                    chartValues=[float(v) for v in item.get("chartValues", [])],
+                    tareas=tareas_models
+                )
+                if item.get("impacto") == "aumenta":
+                    riesgos_list.append(f_model)
+                else:
+                    favorables_list.append(f_model)
+
+            factores_bundle = FactoresBundleModel(
+                periodo="últimas 4 semanas",
+                sumanRiesgo=len(riesgos_list),
+                jueganFavor=len(favorables_list),
+                riesgos=riesgos_list,
+                favorables=favorables_list,
+                reflexionOpciones=[
+                    "Organizar mejor mis horarios de estudio",
+                    "Repasar con anticipación los módulos y temas complejos",
+                    "Preguntar más al docente en las sesiones en vivo",
+                    "Participar activamente en los foros del curso"
+                ]
+            )
+        except Exception:
+            factores_bundle = None
 
     pct = pred["porcentaje"] if pred else 85
     prob = pred["probabilidad"] if pred else 0.85
@@ -226,5 +456,77 @@ def get_course_risk_detail(id_estudiante: str, id_curso: str):
         rango_max=r_max,
         paso_titulo=pred["paso_titulo"] if pred and pred["paso_titulo"] else "Revisar contenidos pendientes",
         paso_subtitulo=pred["paso_subtitulo"] if pred and pred["paso_subtitulo"] else "En el aula virtual",
-        paso_tipo=pred["paso_tipo"] if pred and pred["paso_tipo"] else "task"
+        paso_tipo=pred["paso_tipo"] if pred and pred["paso_tipo"] else "task",
+        factores=factores_bundle
     )
+
+def _get_current_monday_str() -> str:
+    now = datetime.now()
+    monday = now - timedelta(days=now.weekday())
+    return monday.strftime("%Y-%m-%d")
+
+def _calcular_semanas_previas_completadas(cur, id_estudiante: str, semana_lunes_actual: str) -> int:
+    cur.execute("SELECT COUNT(DISTINCT id_curso) FROM cursos WHERE id_estudiante = ?;", (id_estudiante,))
+    tot_row = cur.fetchone()
+    total_cursos = tot_row[0] if tot_row and tot_row[0] > 0 else 0
+    if total_cursos == 0:
+        return 0
+
+    cur.execute("""
+        SELECT semana_lunes, COUNT(DISTINCT id_curso) as cant
+        FROM revisiones_diagnostico
+        WHERE id_estudiante = ? AND semana_lunes != ?
+        GROUP BY semana_lunes;
+    """, (id_estudiante, semana_lunes_actual))
+    semanas = cur.fetchall()
+    return sum(1 for s in semanas if s["cant"] >= total_cursos)
+
+@router.get("/{id_estudiante}/revisiones-diagnostico", response_model=DiagnosticReviewsResponse)
+def get_diagnostic_reviews(id_estudiante: str):
+    semana_lunes = _get_current_monday_str()
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id_curso FROM revisiones_diagnostico 
+            WHERE id_estudiante = ? AND semana_lunes = ?;
+        """, (id_estudiante, semana_lunes))
+        rows = cur.fetchall()
+        cursos = [r["id_curso"] for r in rows]
+        semanas_previas = _calcular_semanas_previas_completadas(cur, id_estudiante, semana_lunes)
+        return DiagnosticReviewsResponse(
+            id_estudiante=id_estudiante,
+            semana_lunes=semana_lunes,
+            cursos_revisados=cursos,
+            semanas_previas_completadas=semanas_previas,
+        )
+    finally:
+        conn.close()
+
+@router.post("/{id_estudiante}/cursos/{id_curso}/revision-diagnostico", response_model=DiagnosticReviewsResponse)
+def record_diagnostic_review(id_estudiante: str, id_curso: str):
+    semana_lunes = _get_current_monday_str()
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT OR IGNORE INTO revisiones_diagnostico (id_estudiante, id_curso, semana_lunes)
+            VALUES (?, ?, ?);
+        """, (id_estudiante, id_curso, semana_lunes))
+        conn.commit()
+
+        cur.execute("""
+            SELECT id_curso FROM revisiones_diagnostico 
+            WHERE id_estudiante = ? AND semana_lunes = ?;
+        """, (id_estudiante, semana_lunes))
+        rows = cur.fetchall()
+        cursos = [r["id_curso"] for r in rows]
+        semanas_previas = _calcular_semanas_previas_completadas(cur, id_estudiante, semana_lunes)
+        return DiagnosticReviewsResponse(
+            id_estudiante=id_estudiante,
+            semana_lunes=semana_lunes,
+            cursos_revisados=cursos,
+            semanas_previas_completadas=semanas_previas,
+        )
+    finally:
+        conn.close()

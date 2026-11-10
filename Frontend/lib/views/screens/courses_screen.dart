@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/course_model.dart';
+import '../../data/models/gamification_tier.dart';
+import '../../main.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/courses_viewmodel.dart';
+import '../../viewmodels/metacognitive_viewmodel.dart';
+import '../../viewmodels/riesgo_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/tutor_viewmodel.dart';
+import '../../data/services/sync_coordinator.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/course_card.dart';
+import '../widgets/tier_avatar.dart';
 import 'login_screen.dart';
 import 'risk_screen.dart';
 
@@ -19,7 +27,9 @@ class CoursesScreen extends StatefulWidget {
   State<CoursesScreen> createState() => _CoursesScreenState();
 }
 
-class _CoursesScreenState extends State<CoursesScreen> {
+class _CoursesScreenState extends State<CoursesScreen> with RouteAware {
+  Key _lottieKey = UniqueKey();
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +38,45 @@ class _CoursesScreenState extends State<CoursesScreen> {
       final authStudent = context.read<AuthViewModel>().student;
       context.read<CoursesViewModel>().loadCourses(studentId: authStudent?.idEstudiante);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute != null) {
+      routeObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Al regresar a esta pantalla desde otra vista, se reproduce una sola vez de nuevo
+    if (mounted) {
+      setState(() {
+        _lottieKey = UniqueKey();
+      });
+      // Sincroniza de inmediato con SQLite para reflejar cualquier cambio de porcentaje
+      final authStudent = context.read<AuthViewModel>().student;
+      context.read<CoursesViewModel>().loadCourses(
+            studentId: authStudent?.idEstudiante,
+            refresh: false,
+          );
+    }
+  }
+
+  void _replayLottie() {
+    if (mounted) {
+      setState(() {
+        _lottieKey = UniqueKey();
+      });
+    }
   }
 
   void _confirmarCerrarSesion(BuildContext context) {
@@ -65,6 +114,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
             onPressed: () {
               Navigator.of(ctx).pop();
               context.read<AuthViewModel>().logout();
+              context.read<CoursesViewModel>().clear();
+              context.read<MetacognitiveViewModel>().clear();
+              context.read<RiesgoViewModel>().clear();
+              context.read<TutorViewModel>().clear();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
@@ -80,14 +133,66 @@ class _CoursesScreenState extends State<CoursesScreen> {
   void _mostrarPerfil(BuildContext context, CoursesViewModel vm) {
     final authStudent = context.read<AuthViewModel>().student;
 
+    MetacognitiveViewModel? metacognitiveVm;
+    try {
+      metacognitiveVm = context.read<MetacognitiveViewModel>();
+    } catch (_) {}
+
+    TutorViewModel? tutorVm;
+    try {
+      tutorVm = context.read<TutorViewModel>();
+    } catch (_) {}
+
+    final safeCourses = vm.courses.where((c) => c.nivelRiesgo == 'BAJO').length;
+    final totalCursos = vm.courses.length;
+    final tareasTotales = metacognitiveVm?.tareasTotales ?? 0;
+    final tareasEntregadas = metacognitiveVm?.tareasEntregadas ?? 0;
+    final diasActivos = metacognitiveVm?.diasActivosSemanales ?? 0;
+    final tutorConsultas = tutorVm?.mensajes.where((m) => m.esUsuario).length ?? 0;
+    final cursosRevisadosCount = metacognitiveVm?.cursosRevisadosEstaSemana.length ?? 0;
+    final esEstratega = totalCursos > 0 && cursosRevisadosCount >= totalCursos;
+
+    double sumaNotasPonderadas = 0.0;
+    int sumaCreditosConNota = 0;
+    if (metacognitiveVm != null) {
+      for (final c in metacognitiveVm.cursos) {
+        final prom = c.metricas.where((m) => m.clave == 'promedio').firstOrNull;
+        if (prom == null || prom.valor == 'Sin notas') continue;
+        final nota = double.tryParse(prom.valor);
+        if (nota != null) {
+          final creditos = c.curso.creditos > 0 ? c.curso.creditos : 4;
+          sumaNotasPonderadas += nota * creditos;
+          sumaCreditosConNota += creditos;
+        }
+      }
+    }
+    final tieneBuenPromedio = sumaCreditosConNota > 0 &&
+        (sumaNotasPonderadas / sumaCreditosConNota) >= 14.0;
+
+    final pointsSummary = GamificationPointsSummary.calculate(
+      tareasEntregadas: tareasEntregadas,
+      safeCourses: safeCourses,
+      totalCursos: totalCursos,
+      tareasTotales: tareasTotales,
+      tieneBuenPromedio: tieneBuenPromedio,
+      diasActivosSemanales: diasActivos,
+      esEstrategaEstaSemana: esEstratega,
+      semanasPreviasEstratega: metacognitiveVm?.semanasPreviasEstratega ?? 0,
+      semanasPreviasConstancia: metacognitiveVm?.semanasPreviasConstancia ?? 0,
+      tutorConsultas: tutorConsultas,
+    );
+    final tier = pointsSummary.tier;
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceOf(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -103,18 +208,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
               ),
               const SizedBox(height: 18),
 
-              // Avatar grande del estudiante
-              CircleAvatar(
+              // Avatar con marco cosmético dinámico y distintivo de Rango
+              TierAvatar(
+                initials: vm.iniciales,
+                tier: tier,
                 radius: 36,
-                backgroundColor: AppColors.brand,
-                child: Text(
-                  vm.iniciales,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 24,
-                  ),
-                ),
+                showBadge: true,
               ),
               const SizedBox(height: 12),
 
@@ -132,7 +231,73 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 authStudent?.email ?? '${vm.studentId.toLowerCase()}@unmsm.edu.pe',
                 style: TextStyle(fontSize: 13, color: AppColors.textMutedOf(context)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Tarjeta de Puntos Rumbo y Progreso de Rango
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundOf(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderOf(context)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.workspace_premium_rounded, size: 18, color: tier.primaryColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${pointsSummary.totalPoints} Puntos Rumbo',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          tier.level < 6
+                              ? 'Faltan ${pointsSummary.xpRemaining} XP'
+                              : 'Rango Máximo',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: tier.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: pointsSummary.progressInTier,
+                        minHeight: 7,
+                        backgroundColor: AppColors.borderOf(context),
+                        valueColor: AlwaysStoppedAnimation<Color>(tier.primaryColor),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        tier.subtitle,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.textMutedOf(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
 
               // Tarjeta informativa institucional
               Container(
@@ -182,7 +347,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                     children: [
                       Icon(
                         themeVm.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        color: themeVm.isDarkMode ? Colors.amber : AppColors.brand,
+                        color: themeVm.isDarkMode ? Colors.amber : AppColors.brandOf(context),
                         size: 22,
                       ),
                       const SizedBox(width: 12),
@@ -210,40 +375,42 @@ class _CoursesScreenState extends State<CoursesScreen> {
                       ),
                       Switch(
                         value: themeVm.isDarkMode,
-                        activeThumbColor: AppColors.brand,
+                        activeThumbColor: AppColors.brandOf(context),
                         onChanged: (_) => themeVm.toggleTheme(),
                       ),
                     ],
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
 
-              // Botón de Cerrar Sesión en el perfil
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.riskHigh,
-                  side: const BorderSide(color: AppColors.riskHigh),
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _confirmarCerrarSesion(context);
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.logout_rounded, size: 18, color: AppColors.riskHigh),
-                    SizedBox(width: 8),
-                    Text(
-                      'Cerrar Sesión',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.riskHigh),
+              // Botón de Cerrar Sesión en el modal de perfil
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.riskHigh,
+                    side: const BorderSide(color: AppColors.riskHigh, width: 1.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  ],
+                  ),
+                  icon: const Icon(Icons.logout_rounded, size: 20),
+                  label: const Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _confirmarCerrarSesion(context);
+                  },
                 ),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -276,25 +443,27 @@ class _CoursesScreenState extends State<CoursesScreen> {
           CoursesStatus.empty => _EmptyState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
           CoursesStatus.error => _ErrorState(
               onRetry: () {
                 final authStudent = context.read<AuthViewModel>().student;
-                vm.loadCourses(studentId: authStudent?.idEstudiante);
+                vm.loadCourses(studentId: authStudent?.idEstudiante, refresh: true);
               },
               onLogout: () => _confirmarCerrarSesion(context),
             ),
           CoursesStatus.loaded => RefreshIndicator(
               color: AppColors.brand,
               onRefresh: () async {
-                final authStudent = context.read<AuthViewModel>().student;
-                await vm.loadCourses(studentId: authStudent?.idEstudiante);
+                await AppSyncCoordinator.syncAll(context, refreshMoodle: true);
+                _replayLottie();
               },
               child: _LoadedState(
                 vm: vm,
+                lottieKey: _lottieKey,
+                onRefreshLottie: _replayLottie,
                 onLogout: () => _confirmarCerrarSesion(context),
                 onShowProfile: () => _mostrarPerfil(context, vm),
               ),
@@ -307,11 +476,15 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
 class _LoadedState extends StatelessWidget {
   final CoursesViewModel vm;
+  final Key lottieKey;
+  final VoidCallback onRefreshLottie;
   final VoidCallback onLogout;
   final VoidCallback onShowProfile;
 
   const _LoadedState({
     required this.vm,
+    required this.lottieKey,
+    required this.onRefreshLottie,
     required this.onLogout,
     required this.onShowProfile,
   });
@@ -319,155 +492,255 @@ class _LoadedState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resumen = vm.summary;
-    final themeVm = context.watch<ThemeViewModel>();
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        alignment: Alignment.topCenter,
         children: [
-          // Header Superior con perfil, tema y acción de cerrar sesión
-          Row(
-            children: [
-              Builder(
-                builder: (drawerCtx) => IconButton(
-                  icon: const Icon(Icons.menu_rounded, size: 28),
-                  color: AppColors.textPrimaryOf(context),
-                  tooltip: 'Menú de opciones',
-                  onPressed: () => Scaffold.of(drawerCtx).openDrawer(),
-                ),
+          // Fondo azul superior curvo con esferas difuminadas (mismo estilo del Login)
+          Container(
+            width: double.infinity,
+            height: 245,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0D2167),
+                  Color(0xFF173899),
+                  Color(0xFF2457D6),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hola, ${vm.primerNombre} 👋',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondaryOf(context),
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(38),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(38),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -35,
+                    left: -30,
+                    child: Container(
+                      width: 160,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.blueAccent.withValues(alpha: 0.28),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Mis Cursos',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimaryOf(context),
-                        letterSpacing: -0.5,
+                  ),
+                  Positioned(
+                    top: -20,
+                    right: 40,
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.lightBlueAccent.withValues(alpha: 0.25),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 30,
+                    right: -25,
+                    child: Container(
+                      width: 130,
+                      height: 130,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            const Color(0xFF60A5FA).withValues(alpha: 0.30),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 35,
+                    right: 110,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.lightBlueAccent.withValues(alpha: 0.18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Contenido principal
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Superior en blanco sobre el fondo azul
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Builder(
+                      builder: (drawerCtx) => IconButton(
+                        icon: const Icon(Icons.menu_rounded, size: 28),
+                        color: Colors.white,
+                        tooltip: 'Menú de opciones',
+                        onPressed: () => Scaffold.of(drawerCtx).openDrawer(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mis Cursos',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.7,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Hola, ${vm.primerNombre}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.88),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Avatar interactivo
+                    InkWell(
+                      onTap: onShowProfile,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.28),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: const Color(0xFF142C73),
+                          child: Text(
+                            vm.iniciales,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              // Botón de alternar Tema (Modo Claro / Modo Oscuro)
-              IconButton(
-                onPressed: () => themeVm.toggleTheme(),
-                icon: Icon(
-                  themeVm.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: themeVm.isDarkMode ? Colors.amber : AppColors.textSecondaryOf(context),
+                const SizedBox(height: 20),
+
+                // Tarjeta Hero con Lottie main.json a la derecha (reproduce una sola vez)
+                _HeroCard(
+                  key: lottieKey,
+                  resumen: resumen,
+                  totalCursos: vm.courses.length,
                 ),
-                tooltip: themeVm.isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
-              ),
 
-              const SizedBox(width: 4),
+                const SizedBox(height: 18),
 
-              // Avatar interactivo
-              InkWell(
-                onTap: onShowProfile,
-                borderRadius: BorderRadius.circular(24),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.brand,
-                  child: Text(
-                    vm.iniciales,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                // Barra de ordenamiento y última sincronización
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: vm.toggleSort,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceOf(context),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.borderOf(context)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.swap_vert_rounded,
+                              size: 16,
+                              color: AppColors.textSecondaryOf(context),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              vm.sortByPriority ? 'Por prioridad de riesgo' : 'Alfabético',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      vm.lastSyncFormatted,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMutedOf(context),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Lista de tarjetas de cursos
+                ...vm.courses.map(
+                  (curso) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: CourseCard(
+                      curso: curso,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RiskScreen(courseId: curso.idCurso),
+                          ),
+                        );
+                        onRefreshLottie();
+                      },
                     ),
                   ),
                 ),
-              ),
-
-              const SizedBox(width: 4),
-
-              // Botón de Cerrar Sesión en Header
-              IconButton(
-                onPressed: onLogout,
-                icon: const Icon(Icons.logout_rounded, color: AppColors.riskHigh, size: 22),
-                tooltip: 'Cerrar sesión',
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Tarjeta Hero con métricas de distribución y explicabilidad
-          _HeroCard(resumen: resumen, totalCursos: vm.courses.length),
-
-          const SizedBox(height: 18),
-
-          // Barra de ordenamiento y última sincronización
-          Row(
-            children: [
-              InkWell(
-                onTap: vm.toggleSort,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceOf(context),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.borderOf(context)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.swap_vert_rounded, size: 16, color: AppColors.brand),
-                      const SizedBox(width: 6),
-                      Text(
-                        vm.sortByPriority ? 'Por prioridad de riesgo' : 'Alfabético',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.brand,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                vm.lastSyncFormatted,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textMutedOf(context),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Lista de tarjetas de cursos
-          ...vm.courses.map(
-            (curso) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: CourseCard(
-                curso: curso,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => RiskScreen(courseId: curso.idCurso),
-                  ),
-                ),
-              ),
+              ],
             ),
           ),
         ],
@@ -480,7 +753,11 @@ class _HeroCard extends StatelessWidget {
   final RiskDistributionSummary resumen;
   final int totalCursos;
 
-  const _HeroCard({required this.resumen, required this.totalCursos});
+  const _HeroCard({
+    super.key,
+    required this.resumen,
+    required this.totalCursos,
+  });
 
   String get _mensaje {
     final c = resumen.critico;
@@ -499,104 +776,137 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceOf(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderOf(context)),
-        boxShadow: AppColors.cardShadowOf(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.brandSoftOf(context),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.analytics_outlined,
-                  color: AppColors.brand,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Diagnóstico Predictivo',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.brand,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundOf(context),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$totalCursos cursos',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondaryOf(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _mensaje,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimaryOf(context),
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Chips de resumen por niveles
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _StatusPill(
-                icono: Icons.warning_rounded,
-                texto: '${resumen.critico} crítico',
-                color: AppColors.riskHigh,
-                fondo: AppColors.riskHighSoft,
-              ),
-              _StatusPill(
-                icono: Icons.trending_down_rounded,
-                texto: '${resumen.moderado} moderado',
-                color: AppColors.riskMedium,
-                fondo: AppColors.riskMediumSoft,
-              ),
-              _StatusPill(
-                icono: Icons.check_circle_outline_rounded,
-                texto: '${resumen.bajo} seguro',
-                color: AppColors.riskLow,
-                fondo: AppColors.riskLowSoft,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Estimaciones calculadas con IA y actividad real de Moodle (Nielsen H6).',
-            style: TextStyle(fontSize: 11.5, color: AppColors.textMutedOf(context)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1D3B91),
+            Color(0xFF2349B5),
+            Color(0xFF2D60DC),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black54 : const Color(0xFF173899).withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Brillo interior detrás del Lottie
+            Positioned(
+              right: -10,
+              top: -10,
+              child: Container(
+                width: 145,
+                height: 145,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.lightBlueAccent.withValues(alpha: 0.30),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 14, 20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Columna izquierda: Textos y estado
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Resumen Académico',
+                          style: TextStyle(
+                            fontSize: 18.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _mensaje,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.92),
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (resumen.critico > 0)
+                              _StatusPill(
+                                icono: Icons.warning_rounded,
+                                texto: '${resumen.critico} crítico',
+                                color: const Color(0xFF991B1B),
+                                fondo: const Color(0xFFFEE2E2),
+                              ),
+                            if (resumen.moderado > 0)
+                              _StatusPill(
+                                icono: Icons.trending_down_rounded,
+                                texto: '${resumen.moderado} moderado',
+                                color: const Color(0xFF92400E),
+                                fondo: const Color(0xFFFEF3C7),
+                              ),
+                            _StatusPill(
+                              icono: Icons.check_circle_rounded,
+                              texto: '${resumen.bajo} seguro',
+                              color: const Color(0xFF065F46),
+                              fondo: const Color(0xFFD1FAE5),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Animación Lottie a la derecha
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: Lottie.asset(
+                      'assets/animations/main.json',
+                      fit: BoxFit.contain,
+                      repeat: false,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.rocket_launch_rounded,
+                          size: 64,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -618,22 +928,29 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: fondo,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: fondo.withValues(alpha: 0.45),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icono, size: 14, color: color),
-          const SizedBox(width: 5),
+          Icon(icono, size: 16, color: color),
+          const SizedBox(width: 6),
           Text(
             texto,
             style: TextStyle(
               color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
           ),
         ],

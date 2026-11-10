@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Diagrama Multicapa del Backend - RUMBO (FastAPI &amp; ML)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    width: 1400px;
+    height: 1180px;
+    background: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #0F172A;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    overflow: hidden;
+  }
+
+  .diagram-viewport {
+    width: 1370px;
+    height: 1150px;
+    position: relative;
+    background: #FFFFFF;
+  }
+
+  /* ================== CLIENT DEVICE (TOP) ================== */
+  .device-mockup {
+    position: absolute;
+    left: 445px;
+    top: 8px;
+    width: 280px;
+    height: 125px;
+    background: #FFFFFF;
+    border: 3.2px solid #1A202C;
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    text-align: center;
+    z-index: 10;
+  }
+  .device-camera {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #718096;
+    margin-bottom: 4px;
+  }
+  .device-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1A202C;
+    line-height: 1.2;
+  }
+  .device-tag {
+    font-size: 10px;
+    font-weight: 600;
+    color: #718096;
+    margin-top: 1px;
+  }
+  .device-desc {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0B2545;
+    margin-top: 2px;
+  }
+  .device-pills {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .dev-pill {
+    background: #F1F5F9;
+    color: #0B2545;
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid #CBD5E1;
+  }
+
+  /* ================== BACKEND CONTAINER ================== */
+  .backend-system-boundary {
+    position: absolute;
+    left: 20px;
+    top: 175px;
+    width: 1050px;
+    height: 960px;
+    border: 2px solid #4A5568;
+    border-radius: 10px;
+    background: #FFFFFF;
+    z-index: 1;
+  }
+  .system-label {
+    position: absolute;
+    left: 14px;
+    bottom: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #1A202C;
+  }
+  .system-tag {
+    font-size: 10px;
+    font-weight: 500;
+    color: #718096;
+    margin-left: 4px;
+  }
+
+  .backend-container-boundary {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 1028px;
+    height: 918px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 8px;
+    background: #FAFCFE;
+  }
+  .container-label {
+    position: absolute;
+    left: 14px;
+    bottom: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #475569;
+  }
+
+  /* ================== LAYERS (DASHED BOXES) ================== */
+  .layer-box {
+    position: absolute;
+    border: 1.5px dashed #94A3B8;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+  .layer-title-badge {
+    position: absolute;
+    left: 14px;
+    bottom: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #0B2545;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: -0.1px;
+    z-index: 6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .layer-network {
+    left: 14px;
+    top: 14px;
+    width: 998px;
+    height: 275px;
+  }
+
+  .layer-services {
+    left: 14px;
+    top: 300px;
+    width: 998px;
+    height: 335px;
+  }
+
+  .layer-persistence {
+    left: 14px;
+    top: 648px;
+    width: 998px;
+    height: 242px;
+  }
+
+  /* ================== COMPONENT CARDS ================== */
+  .c4-card {
+    position: absolute;
+    background: #FFFFFF;
+    border: 1.8px solid #0B2545;
+    border-radius: 8px;
+    padding: 7px 9px;
+    text-align: center;
+    box-shadow: 0 3px 8px rgba(11, 37, 69, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+  }
+  .c4-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0B2545;
+    line-height: 1.15;
+  }
+  .c4-type {
+    font-size: 9px;
+    font-weight: 600;
+    color: #64748B;
+    margin-top: 1px;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+  }
+  .c4-route {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: #0284C7;
+    background: #EFF6FF;
+    border: 1px solid #BAE6FD;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-top: 3px;
+    display: inline-block;
+  }
+  .c4-desc {
+    font-size: 9.5px;
+    font-weight: 500;
+    color: #334155;
+    margin-top: 3px;
+    line-height: 1.25;
+  }
+
+  /* ================== EXTERNAL SYSTEMS (RIGHT) ================== */
+  .external-card {
+    position: absolute;
+    width: 255px;
+    height: 105px;
+    background: #64748B;
+    color: #FFFFFF;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+    z-index: 5;
+  }
+  .ext-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #FFFFFF;
+    line-height: 1.15;
+  }
+  .ext-type {
+    font-size: 9px;
+    font-weight: 600;
+    color: #E2E8F0;
+    margin-top: 1px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .ext-desc {
+    font-size: 10px;
+    font-weight: 500;
+    color: #F8FAFC;
+    margin-top: 3px;
+    line-height: 1.25;
+  }
+
+  /* ================== SVG ARROWS OVERLAY ================== */
+  .svg-arrows-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1370px;
+    height: 1150px;
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  .arrow-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    fill: #0B2545;
+    text-anchor: middle;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .arrow-label-bg {
+    fill: #FFFFFF;
+    stroke: #CBD5E1;
+    stroke-width: 0.8px;
+    rx: 3px;
+    ry: 3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="diagram-viewport">
+
+  <!-- ============================================================== -->
+  <!-- CLIENT DEVICE (APP MÓVIL FLUTTER MVVM)                         -->
+  <!-- ============================================================== -->
+  <div class="device-mockup">
+    <div class="device-camera"></div>
+    <div class="device-title">App Móvil Flutter (MVVM)</div>
+    <div class="device-tag">[Software System]</div>
+    <div class="device-desc">Cliente Móvil (Dart &amp; Provider)</div>
+    <div class="device-pills">
+      <span class="dev-pill">🎯 Riesgo H6</span>
+      <span class="dev-pill">🤖 Tutor IA</span>
+      <span class="dev-pill">🎮 6 Rangos XP</span>
+      <span class="dev-pill">🧠 Metacognición</span>
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- SISTEMA BACKEND FASTAPI                                        -->
+  <!-- ============================================================== -->
+  <div class="backend-system-boundary">
+    
+    <div class="backend-container-boundary">
+
+      <!-- ========================================================== -->
+      <!-- CAPA 1: RED Y CONTROLADORES REST FASTAPI                   -->
+      <!-- ========================================================== -->
+      <div class="layer-box layer-network">
+        <div class="layer-title-badge">Capa de Red y Controladores REST FastAPI</div>
+      </div>
+
+      <!-- Componente: main.py -->
+      <div class="c4-card" style="left: 360px; top: 22px; width: 310px; height: 68px;">
+        <div class="c4-title">main.py</div>
+        <div class="c4-type">[Component: FastAPI]</div>
+        <div class="c4-desc">CORS + Middleware + Uvicorn ASGI Server<br>Documentación Swagger en <b>/docs</b></div>
+      </div>
+
+      <!-- Componente: cursos.py -->
+      <div class="c4-card" style="left: 32px; top: 135px; width: 222px; height: 114px;">
+        <div class="c4-title">cursos.py</div>
+        <div class="c4-type">[Component: FastAPI Router]</div>
+        <div class="c4-route">/api/estudiantes</div>
+        <div class="c4-desc">Asignaturas, Riesgo Académico H6, Gamificación (6 Rangos &amp; XP) y Metacognición</div>
+      </div>
+
+      <!-- Componente: predict.py -->
+      <div class="c4-card" style="left: 278px; top: 135px; width: 222px; height: 114px;">
+        <div class="c4-title">predict.py</div>
+        <div class="c4-type">[Component: FastAPI Router]</div>
+        <div class="c4-route">/api/predict</div>
+        <div class="c4-desc">Inferencia de Riesgo Directa y Simulación What-If (7 Variables del Modelo)</div>
+      </div>
+
+      <!-- Componente: auth.py -->
+      <div class="c4-card" style="left: 524px; top: 135px; width: 222px; height: 114px;">
+        <div class="c4-title">auth.py</div>
+        <div class="c4-type">[Component: FastAPI Router]</div>
+        <div class="c4-route">/api/auth</div>
+        <div class="c4-desc">Autenticación contra Moodle Web Services, Tokens Bearer y Sesiones</div>
+      </div>
+
+      <!-- Componente: tutor.py -->
+      <div class="c4-card" style="left: 770px; top: 135px; width: 222px; height: 114px;">
+        <div class="c4-title">tutor.py</div>
+        <div class="c4-type">[Component: FastAPI Router]</div>
+        <div class="c4-route">/api/tutor</div>
+        <div class="c4-desc">Chatbot Tutor IA Pedagógico, Andamiaje Cognitivo y Prompts Adaptativos</div>
+      </div>
+
+
+      <!-- ========================================================== -->
+      <!-- CAPA 2: SERVICIOS Y NEGOCIO                                -->
+      <!-- ========================================================== -->
+      <div class="layer-box layer-services">
+        <div class="layer-title-badge">Capa de Servicios y Negocio</div>
+      </div>
+
+      <!-- Componente: data_service.py -->
+      <div class="c4-card" style="left: 32px; top: 330px; width: 222px; height: 100px;">
+        <div class="c4-title">data_service.py</div>
+        <div class="c4-type">[Component: Service / Repository]</div>
+        <div class="c4-desc">Adaptador de Datos, Catálogo de Asignaturas y Perfiles de Estudiante Fallback</div>
+      </div>
+
+      <!-- Componente: moodle_service.py -->
+      <div class="c4-card" style="left: 510px; top: 330px; width: 250px; height: 100px;">
+        <div class="c4-title">moodle_service.py</div>
+        <div class="c4-type">[Component: Service]</div>
+        <div class="c4-desc">Orquestador de Moodle REST: Telemetría de 7 Variables, Calificaciones y Tareas</div>
+      </div>
+
+      <!-- Componente: ml_service.py -->
+      <div class="c4-card" style="left: 260px; top: 485px; width: 255px; height: 115px;">
+        <div class="c4-title">ml_service.py</div>
+        <div class="c4-type">[Component: Service]</div>
+        <div class="c4-desc">Pipeline de Inferencia Scikit-Learn: LogisticRegression, StandardScaler, Bandas H6 y Coeficientes XAI</div>
+      </div>
+
+
+      <!-- ========================================================== -->
+      <!-- CAPA 3: PERSISTENCIA Y MODELOS                             -->
+      <!-- ========================================================== -->
+      <div class="layer-box layer-persistence">
+        <div class="layer-title-badge">Capa de Persistencia y Modelos</div>
+      </div>
+
+      <!-- Componente: ml_models/ -->
+      <div class="c4-card" style="left: 70px; top: 685px; width: 255px; height: 95px;">
+        <div class="c4-title">ml_models/</div>
+        <div class="c4-type">[Component: Artifacts]</div>
+        <div class="c4-desc">model.joblib · scaler.joblib · features.joblib<br><b>(Regresión Logística de 7 variables entrenada)</b></div>
+      </div>
+
+      <!-- Componente: models.py -->
+      <div class="c4-card" style="left: 385px; top: 685px; width: 255px; height: 95px;">
+        <div class="c4-title">models.py</div>
+        <div class="c4-type">[Component: Models]</div>
+        <div class="c4-desc">Esquemas Pydantic v2: Login, Cursos, Factores XAI, Metacognición y TutorChat</div>
+      </div>
+
+      <!-- Componente: database.py -->
+      <div class="c4-card" style="left: 700px; top: 685px; width: 265px; height: 105px;">
+        <div class="c4-title">database.py</div>
+        <div class="c4-type">[Component: Database]</div>
+        <div class="c4-desc">SQLite con Modo WAL (<b>rumbo.db</b>)<br>Tablas: <i>estudiantes, cursos, metricas, predicciones, accesos, revisiones</i></div>
+      </div>
+
+      <div class="container-label">Aplicación FastAPI <span style="font-weight:500; font-size:10px; color:#718096;">[Container]</span></div>
+
+    </div>
+
+    <div class="system-label">Sistema Backend FastAPI <span class="system-tag">[Software System]</span></div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- SISTEMAS EXTERNOS (DERECHA)                                    -->
+  <!-- ============================================================== -->
+  <!-- Google Gemini API -->
+  <div class="external-card" style="left: 1095px; top: 325px;">
+    <div class="ext-title">Google Gemini API (LLM)</div>
+    <div class="ext-type">[Software System]</div>
+    <div class="ext-desc">LLM Cloud (gemini-1.5-flash / gemini-pro)<br>Motor Cognitivo del Tutor Pedagógico</div>
+  </div>
+
+  <!-- MoodleCloud LMS -->
+  <div class="external-card" style="left: 1095px; top: 515px;">
+    <div class="ext-title">MoodleCloud LMS</div>
+    <div class="ext-type">[Software System]</div>
+    <div class="ext-desc">Web Services REST API (moodle_mobile_app)<br>LMS Académico Institucional</div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- SVG CONEXIONES Y FLECHAS                                       -->
+  <!-- ============================================================== -->
+  <svg class="svg-arrows-layer" viewBox="0 0 1370 1150">
+    <defs>
+      <!-- Arrowheads -->
+      <marker id="arrow-down" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0B2545"/>
+      </marker>
+      <marker id="arrow-right" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0B2545"/>
+      </marker>
+    </defs>
+
+    <!-- 1. App Móvil -> main.py (HTTP / JSON) -->
+    <line x1="585" y1="133" x2="585" y2="202" stroke="#0B2545" stroke-width="1.8" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="548" y="160" width="74" height="15" class="arrow-label-bg"/>
+    <text x="585" y="171" class="arrow-label">HTTP / JSON</text>
+
+    <!-- Horizontal distribution line from main.py (leaving at y=275) -->
+    <!-- 2. main.py -> cursos.py -->
+    <path d="M 480 275 L 143 275 L 143 315" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="180" y="268" width="76" height="14" class="arrow-label-bg"/>
+    <text x="218" y="278" class="arrow-label">Rutea peticiones</text>
+
+    <!-- 3. main.py -> predict.py -->
+    <path d="M 520 275 L 389 275 L 389 315" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="351" y="285" width="76" height="14" class="arrow-label-bg"/>
+    <text x="389" y="295" class="arrow-label">Rutea peticiones</text>
+
+    <!-- 4. main.py -> auth.py -->
+    <path d="M 645 275 L 635 275 L 635 315" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="597" y="285" width="76" height="14" class="arrow-label-bg"/>
+    <text x="635" y="295" class="arrow-label">Rutea peticiones</text>
+
+    <!-- 5. main.py -> tutor.py -->
+    <path d="M 670 275 L 881 275 L 881 315" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="755" y="268" width="76" height="14" class="arrow-label-bg"/>
+    <text x="793" y="278" class="arrow-label">Rutea peticiones</text>
+
+    <!-- 6. cursos.py -> data_service.py (Usa) -->
+    <line x1="143" y1="449" x2="143" y2="510" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="130" y="468" width="26" height="13" class="arrow-label-bg"/>
+    <text x="143" y="478" class="arrow-label">Usa</text>
+
+    <!-- 7. predict.py -> ml_service.py (Usa) -->
+    <line x1="389" y1="449" x2="389" y2="665" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="376" y="545" width="26" height="13" class="arrow-label-bg"/>
+    <text x="389" y="555" class="arrow-label">Usa</text>
+
+    <!-- 8. auth.py -> moodle_service.py (Usa) -->
+    <line x1="635" y1="449" x2="635" y2="510" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="622" y="468" width="26" height="13" class="arrow-label-bg"/>
+    <text x="635" y="478" class="arrow-label">Usa</text>
+
+    <!-- 9. tutor.py -> moodle_service.py (Contexto Académico) -->
+    <path d="M 830 449 L 830 475 L 720 475 L 720 510" fill="none" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="760" y="468" width="26" height="13" class="arrow-label-bg"/>
+    <text x="773" y="478" class="arrow-label">Usa</text>
+
+    <!-- 10. tutor.py -> Google Gemini API (Llama a) -->
+    <path d="M 1002 375 L 1093 375" fill="none" stroke="#0B2545" stroke-width="1.8" stroke-dasharray="4,4" marker-end="url(#arrow-right)"/>
+    <rect x="1025" y="368" width="45" height="14" class="arrow-label-bg"/>
+    <text x="1047" y="378" class="arrow-label">Llama a</text>
+
+    <!-- 11. moodle_service.py -> MoodleCloud LMS (Llama a) -->
+    <path d="M 770 567 L 1093 567" fill="none" stroke="#0B2545" stroke-width="1.8" stroke-dasharray="4,4" marker-end="url(#arrow-right)"/>
+    <rect x="885" y="560" width="45" height="14" class="arrow-label-bg"/>
+    <text x="907" y="570" class="arrow-label">Llama a</text>
+
+    <!-- 12. moodle_service.py -> ml_service.py (Orquesta) -->
+    <path d="M 510 615 L 435 615 L 435 665" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="445" y="608" width="50" height="14" class="arrow-label-bg"/>
+    <text x="470" y="618" class="arrow-label">Orquesta</text>
+
+    <!-- 13. data_service.py -> database.py (Consulta / Escribe) via intermediate band (y=840) -->
+    <path d="M 143 615 L 143 840 L 730 840 L 730 865" fill="none" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="145" y="700" width="80" height="14" class="arrow-label-bg"/>
+    <text x="185" y="710" class="arrow-label">Consulta / Escribe</text>
+
+    <!-- 14. moodle_service.py -> database.py (Consulta / Escribe) -->
+    <line x1="680" y1="615" x2="680" y2="840" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <path d="M 680 840 L 800 840 L 800 865" fill="none" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="640" y="700" width="80" height="14" class="arrow-label-bg"/>
+    <text x="680" y="710" class="arrow-label">Consulta / Escribe</text>
+
+    <!-- 15. ml_service.py -> ml_models/ (Carga modelos desde) - Direct and clean -->
+    <path d="M 290 675 L 200 865" fill="none" stroke="#0B2545" stroke-width="1.6" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="195" y="745" width="98" height="14" class="arrow-label-bg"/>
+    <text x="244" y="755" class="arrow-label">Carga modelos desde</text>
+
+    <!-- 16. models.py -> database.py (Mapeo DTOs) -->
+    <line x1="650" y1="925" x2="695" y2="925" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-right)"/>
+
+    <!-- 17. tutor.py -> database.py (Historial Chat & Accesos) -->
+    <path d="M 881 439 L 881 865" fill="none" stroke="#0B2545" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-down)"/>
+    <rect x="868" y="700" width="26" height="13" class="arrow-label-bg"/>
+    <text x="881" y="710" class="arrow-label">Usa</text>
+  </svg>
+
+</div>
+
+</body>
+</html>

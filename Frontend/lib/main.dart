@@ -5,12 +5,15 @@ import 'core/theme/app_theme.dart';
 import 'data/services/api_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/courses_viewmodel.dart';
+import 'viewmodels/metacognitive_viewmodel.dart';
 import 'viewmodels/riesgo_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
-import 'views/screens/courses_screen.dart';
+import 'viewmodels/tutor_viewmodel.dart';
 import 'views/screens/login_screen.dart';
+import 'views/screens/main_navigation_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const RumboBootstrap());
 }
 
@@ -34,11 +37,19 @@ class RumboBootstrap extends StatelessWidget {
         ChangeNotifierProvider<RiesgoViewModel>(
           create: (_) => RiesgoViewModel(apiService: apiService),
         ),
+        ChangeNotifierProvider<TutorViewModel>(
+          create: (_) => TutorViewModel(apiService: apiService),
+        ),
+        ChangeNotifierProvider<MetacognitiveViewModel>(
+          create: (_) => MetacognitiveViewModel(apiService: apiService),
+        ),
       ],
       child: RumboApp(authVm: authVm),
     );
   }
 }
+
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
 class RumboApp extends StatelessWidget {
   final AuthViewModel authVm;
@@ -51,6 +62,7 @@ class RumboApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Rumbo',
+      navigatorObservers: [routeObserver],
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -58,7 +70,7 @@ class RumboApp extends StatelessWidget {
       home: ListenableBuilder(
         listenable: authVm,
         builder: (context, _) => authVm.isLoggedIn
-            ? const CoursesScreen()
+            ? const MainNavigationScreen()
             : const LoginScreen(),
       ),
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/course_model.dart';
-import 'risk_badge.dart';
 
 /// Tarjeta moderna de curso adaptable a modo claro y modo oscuro.
 class CourseCard extends StatelessWidget {
@@ -16,168 +15,162 @@ class CourseCard extends StatelessWidget {
     final color = AppColors.forLevel(curso.nivelRiesgo);
     final sinEstimacion = curso.esSinEstimacion;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final chipBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.65);
+
     return Material(
       color: Colors.transparent,
       child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.borderOf(context)),
           boxShadow: AppColors.cardShadowOf(context),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Indicador lateral de color según nivel de riesgo
-                Container(
-                  width: 6,
-                  color: color,
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Badges de código y créditos
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.brandSoftOf(context),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                curso.codigoCurso,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.brand,
-                                ),
-                              ),
+                // Parte superior e intermedia: Información a la izquierda + Anillo de porcentaje a la derecha
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
+                            child: Text(
                               '${curso.creditos} créditos',
                               style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.textMutedOf(context),
-                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                                color: AppColors.textSecondaryOf(context),
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Nombre del curso
-                        Text(
-                          curso.nombreCurso,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            curso.cleanNombreCurso,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimaryOf(context),
+                              height: 1.25,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    if (sinEstimacion)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          curso.fechaEstimacion ?? 'Sin estimación',
                           style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimaryOf(context),
-                            height: 1.25,
+                            fontSize: 12,
+                            color: AppColors.textMutedOf(context),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 6),
-
-                        // Docente asignado
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.person_outline_rounded,
-                              size: 14,
-                              color: AppColors.textMutedOf(context),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                curso.docente,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondaryOf(context),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Sección derecha: Porcentaje y Badge
-                Padding(
-                  padding: const EdgeInsets.only(right: 14, top: 14, bottom: 14),
-                  child: Row(
-                    children: [
+                      )
+                    else
                       Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (sinEstimacion) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.neutralSoft,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                curso.fechaEstimacion ?? 'Sin estimación',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
+                          Text(
+                            '${curso.porcentajeRiesgo}%',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: color,
                             ),
-                          ] else ...[
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
+                          ),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                Text(
-                                  '${curso.porcentajeRiesgo}',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: color,
+                                // Círculo exterior suave tipo doble anillo
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: color.withValues(alpha: 0.08),
+                                    border: Border.all(
+                                      color: color.withValues(alpha: 0.35),
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  '%',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: color,
+                                // Arco de progreso circular
+                                SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: CircularProgressIndicator(
+                                    value: (curso.porcentajeRiesgo.clamp(0, 100) / 100.0) == 0
+                                        ? 0.08
+                                        : (curso.porcentajeRiesgo.clamp(0, 100) / 100.0),
+                                    strokeWidth: 3.2,
+                                    backgroundColor: color.withValues(alpha: 0.2),
+                                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                                    strokeCap: StrokeCap.round,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            RiskBadge(nivelRiesgo: curso.nivelRiesgo),
-                          ],
+                          ),
                         ],
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textMutedOf(context),
-                        size: 20,
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Fila inferior: Docente y chevron
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline_rounded,
+                      size: 16,
+                      color: AppColors.textMutedOf(context),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        curso.docente,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondaryOf(context),
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: AppColors.textMutedOf(context),
+                    ),
+                  ],
                 ),
               ],
             ),

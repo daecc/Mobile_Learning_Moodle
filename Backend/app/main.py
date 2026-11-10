@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, cursos, predict
+from app.routes import auth, cursos, predict, tutor
 
 app = FastAPI(
     title="Rumbo API · Mobile Learning Moodle",
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(cursos.router)
 app.include_router(predict.router)
+app.include_router(tutor.router)
 
 @app.get("/", tags=["Estado"])
 def root():

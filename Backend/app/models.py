@@ -48,6 +48,32 @@ class StudentCoursesResponse(BaseModel):
     resumen_riesgo: RiskDistributionSummary
     cursos: List[CourseRiskSummary]
 
+class TaskItemModel(BaseModel):
+    id: int
+    nombre: str
+    estado: str  # "entregada" | "pendiente" | "vencida"
+    fecha_limite: Optional[str] = None
+    calificacion: Optional[str] = None
+    fecha_entrega: Optional[str] = None
+
+class RiskFactorModel(BaseModel):
+    clave: str
+    titulo: str
+    subtitulo: str
+    impacto: str  # "aumenta" o "reduce"
+    influencia: int = 1
+    chartType: Optional[str] = None
+    chartValues: List[float] = []
+    tareas: List[TaskItemModel] = []
+
+class FactoresBundleModel(BaseModel):
+    periodo: str = "últimas semanas"
+    sumanRiesgo: int = 0
+    jueganFavor: int = 0
+    riesgos: List[RiskFactorModel] = []
+    favorables: List[RiskFactorModel] = []
+    reflexionOpciones: List[str] = []
+
 class RiskDetailResponse(BaseModel):
     id_estudiante: str
     id_curso: str
@@ -66,21 +92,42 @@ class RiskDetailResponse(BaseModel):
     paso_titulo: Optional[str] = None
     paso_subtitulo: Optional[str] = None
     paso_tipo: Optional[str] = None
+    factores: Optional[FactoresBundleModel] = None
 
 class CustomPredictionRequest(BaseModel):
-    carga_academica_actual: float = 5.0
-    calificacion_historica_promedio: float = 12.0
+    promedio_calificaciones: float = 14.0
     tendencia_calificaciones: float = 0.0
-    tasa_acierto_primer_intento: float = 0.6
-    duracion_intento_minutos: float = 15.0
-    indice_friccion_cognitiva: float = 2.0
-    dias_inactividad_consecutivos: float = 3.0
-    tasa_entregas_tardias: float = 0.2
-    nivel_interaccion_social: float = 0.5
-    tasa_visualizacion_materiales: float = 0.6
+    dias_inactividad: float = 2.0
+    tasa_tareas_pendientes: float = 0.2
+    margen_entrega_horas: float = 12.0
+    asistencia_formal_sesiones: float = 0.90
+    asistencia_virtual_regularidad: float = 0.80
 
 class CustomPredictionResponse(BaseModel):
     probabilidad_riesgo: float
     porcentaje_riesgo: int
     nivel_riesgo: str
     riesgo_confirmado: int
+
+class ChatMessageModel(BaseModel):
+    rol: str = "user"  # "user" o "assistant"
+    contenido: str
+
+class TutorChatRequest(BaseModel):
+    id_estudiante: str
+    id_curso: Optional[str] = None
+    mensaje: str
+    historial: List[ChatMessageModel] = []
+
+class TutorChatResponse(BaseModel):
+    respuesta: str
+    sugerencias: List[str] = []
+    curso_contexto: Optional[str] = None
+    nivel_riesgo: Optional[str] = None
+
+class DiagnosticReviewsResponse(BaseModel):
+    id_estudiante: str
+    semana_lunes: str
+    cursos_revisados: List[str] = []
+    semanas_previas_completadas: int = 0
+
